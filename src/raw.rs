@@ -1,19 +1,41 @@
-
 use std::{ffi::CStr, ptr::null};
 
-struct pcap_t {}
+use crate::Listener;
+
+pub type pcap_t = *const ();
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct timeval {
+    pub tv_sec: i32,
+    pub tv_usec: i32,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct pcap_pkthdr {
+    pub ts: timeval,
+    pub caplen: u32,
+    pub len: u32,
+}
+
+pub type pcap_handler = extern "C" fn(u: &Listener, h: &pcap_pkthdr, bytes: *const u8);
+
+//pub struct pcap_t(());
 
 extern "C" {
     pub fn pcap_findalldevs(all_dev_sp: *mut *mut _pcap_if, err_buf: *mut u8) -> i32;
     pub fn pcap_freealldevs(all_dev_sp: *mut _pcap_if);
 
     pub fn pcap_open_live(
-        device: *mut u8,
+        device: *const u8,
         snaplen: i32,
         promisc: i32,
         to_ms: i32,
         ebuf: *mut u8,
-    ) -> *const pcap_t;
+    ) -> pcap_t;
+
+    pub fn pcap_loop(p: pcap_t, cnt: i32, h: pcap_handler, u: &Listener) -> i32;
 }
 
 #[repr(C)]

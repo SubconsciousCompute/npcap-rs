@@ -3,6 +3,9 @@ mod raw;
 use std::ffi::CStr;
 use std::sync::mpsc;
 
+use raw::pcap_open_live;
+
+/// container that allows for interfacing with network devices
 pub struct PCap {
     _iface: *mut raw::_pcap_if,
 }
@@ -48,7 +51,7 @@ pub struct Device {
     pub name: Option<String>,
     /// Description of the device
     pub desc: Option<String>,
-    //address: sockaddr,
+    //address: raw::sockaddr,
 }
 
 impl Device {
@@ -77,15 +80,16 @@ impl Device {
         }
     }
 
-    /*
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> (Listener, mpsc::Receiver<Packet>) {
-        // open the conn
-        //pcap_open_live()
-
-        //Listener::new(self.clone())
+    pub fn open(self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+        let name = self.name.as_ref().unwrap();
+        let handle = unsafe { pcap_open_live(name.as_ptr(), 65536, 1, 1000, std::ptr::null_mut()) };
+        if !handle.is_null() {
+            Some(Listener::new(self, handle))
+        } else {
+            None
+        }
     }
-     */
 }
 
 pub struct DeviceIter<'a> {
@@ -110,16 +114,54 @@ impl<'a> Iterator for DeviceIter<'a> {
     }
 }
 
-pub struct Packet;
+#[derive(Debug)]
+pub enum PacketType {
+    IP,
+    Ethernet,
+    TCP,
+    UDP,
+}
 
+#[derive(Debug)]
+pub struct Packet {
+    which: PacketType,
+    len: u32,
+}
+
+#[repr(C)]
 pub struct Listener {
-    dev: Device,
+    //dev: Device,
+    handle: raw::pcap_t,
     tx: mpsc::Sender<Packet>,
 }
 
+unsafe impl Sync for Listener {}
+unsafe impl Send for Listener {}
+
+extern "C" fn pkt_handle(param: &Listener, header: &raw::pcap_pkthdr, pkt_data: *const u8) {
+    param.tx.send(Packet {
+        which: PacketType::Ethernet,
+        len: header.len,
+    });
+}
+
 impl Listener {
-    pub fn new(dev: Device) -> (Self, mpsc::Receiver<Packet>) {
+    pub fn new(dev: Device, handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
         let (tx, rx) = mpsc::channel();
-        (Self { dev: dev, tx }, rx)
+        (
+            Self {
+                //dev: dev,
+                tx,
+                handle,
+            },
+            rx,
+        )
+    }
+
+    /// This functions starts a new thread and starts capturing packets
+    pub fn run(self) {
+        std::thread::spawn(move || unsafe {
+            raw::pcap_loop(self.handle, 0, pkt_handle, &self);
+        });
     }
 }
