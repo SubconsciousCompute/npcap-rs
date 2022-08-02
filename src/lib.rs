@@ -146,6 +146,7 @@ extern "C" fn pkt_handle(param: &Listener, header: &raw::pcap_pkthdr, pkt_data: 
 }
 
 impl Listener {
+    /// Create a new packet listener for a device
     pub fn new(dev: Device, handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
         let (tx, rx) = mpsc::channel();
         (
