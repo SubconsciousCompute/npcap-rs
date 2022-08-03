@@ -45,6 +45,14 @@ extern "C" {
         optimize: i32,
         netmask: u32,
     ) -> i32;
+
+    pub fn pcap_dispatch(
+        p: pcap_t,
+        cnt: libc::c_int,
+        callback: pcap_handler,
+        user: *const (),
+    ) -> libc::c_int;
+
 }
 
 #[repr(C)]
