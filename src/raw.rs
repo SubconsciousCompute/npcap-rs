@@ -22,7 +22,7 @@ pub struct pcap_pkthdr {
 pub type pcap_handler = extern "C" fn(u: *const (), h: &pcap_pkthdr, bytes: *const u8);
 
 extern "C" {
-    pub fn pcap_findalldevs(all_dev_sp: *mut *mut _pcap_if, err_buf: *mut u8) -> i32;
+    pub fn pcap_findalldevs(all_dev_sp: *mut *mut _pcap_if, err_buf: *mut u8) -> libc::c_int;
     pub fn pcap_freealldevs(all_dev_sp: *mut _pcap_if);
 
     pub fn pcap_open_live(
@@ -35,7 +35,7 @@ extern "C" {
 
     pub fn pcap_lib_version() -> *const i8;
 
-    pub fn pcap_loop(p: pcap_t, cnt: i32, h: pcap_handler, u: *const ()) -> i32;
+    pub fn pcap_loop(p: pcap_t, cnt: libc::c_int, h: pcap_handler, u: *const ()) -> libc::c_int;
     pub fn pcap_close(p: pcap_t);
 
     pub fn pcap_compile(
@@ -44,7 +44,7 @@ extern "C" {
         s: *const u8,
         optimize: i32,
         netmask: u32,
-    ) -> i32;
+    ) -> libc::c_int;
 
     pub fn pcap_dispatch(
         p: pcap_t,
