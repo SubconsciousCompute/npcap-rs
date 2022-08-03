@@ -72,11 +72,9 @@ impl Device {
             }
         };
 
-        unsafe {
-            Self {
-                name,
-                desc, //address: item.addresses.as_ref().unwrap().clone(),
-            }
+        Self {
+            name,
+            desc, //address: item.addresses.as_ref().unwrap().clone(),
         }
     }
 
@@ -85,7 +83,7 @@ impl Device {
         let name = self.name.as_ref().unwrap();
         let handle = unsafe { pcap_open_live(name.as_ptr(), 65536, 1, 1000, std::ptr::null_mut()) };
         if !handle.is_null() {
-            Some(Listener::new(self, handle))
+            Some(Listener::new(handle))
         } else {
             None
         }
@@ -138,8 +136,13 @@ pub struct Listener {
 unsafe impl Sync for Listener {}
 unsafe impl Send for Listener {}
 
-extern "C" fn pkt_handle(param: &Listener, header: &raw::pcap_pkthdr, pkt_data: *const u8) {
-    param.tx.send(Packet {
+// handler that is called every time we recv a packet
+extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: *const u8) {
+    // very unsafe i feel, idk
+    let p_ptr = param as *const Listener;
+    let param = unsafe { p_ptr.as_ref().unwrap() };
+
+    _ = param.tx.send(Packet {
         which: PacketType::Ethernet,
         len: header.len,
     });
@@ -147,22 +150,26 @@ extern "C" fn pkt_handle(param: &Listener, header: &raw::pcap_pkthdr, pkt_data: 
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(dev: Device, handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
+    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
         let (tx, rx) = mpsc::channel();
-        (
-            Self {
-                //dev: dev,
-                tx,
-                handle,
-            },
-            rx,
-        )
+        (Self { tx, handle }, rx)
     }
 
     /// This functions starts a new thread and starts capturing packets
     pub fn run(self) {
-        std::thread::spawn(move || unsafe {
-            raw::pcap_loop(self.handle, 0, pkt_handle, &self);
-        });
+        use std::thread;
+        // we dont care about the thread handle as this will always run
+        _ = thread::Builder::new()
+            .name("pcap_listener".to_string())
+            .spawn(move || unsafe {
+                raw::pcap_loop(self.handle, 0, pkt_handle, &self as *const _ as _);
+            });
+    }
+}
+
+impl Drop for Listener {
+    fn drop(&mut self) {
+        // close the handle on the capture device
+        unsafe { raw::pcap_close(self.handle) }
     }
 }

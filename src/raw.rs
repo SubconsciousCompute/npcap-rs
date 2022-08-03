@@ -1,6 +1,6 @@
-use std::{ffi::CStr, ptr::null};
+#![allow(non_camel_case_types)]
 
-use crate::Listener;
+use std::ptr::null;
 
 pub type pcap_t = *const ();
 
@@ -19,7 +19,7 @@ pub struct pcap_pkthdr {
     pub len: u32,
 }
 
-pub type pcap_handler = extern "C" fn(u: &Listener, h: &pcap_pkthdr, bytes: *const u8);
+pub type pcap_handler = extern "C" fn(u: *const (), h: &pcap_pkthdr, bytes: *const u8);
 
 //pub struct pcap_t(());
 
@@ -35,7 +35,8 @@ extern "C" {
         ebuf: *mut u8,
     ) -> pcap_t;
 
-    pub fn pcap_loop(p: pcap_t, cnt: i32, h: pcap_handler, u: &Listener) -> i32;
+    pub fn pcap_loop(p: pcap_t, cnt: i32, h: pcap_handler, u: *const ()) -> i32;
+    pub fn pcap_close(p: pcap_t);
 }
 
 #[repr(C)]
