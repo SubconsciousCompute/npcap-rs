@@ -21,8 +21,6 @@ pub struct pcap_pkthdr {
 
 pub type pcap_handler = extern "C" fn(u: *const (), h: &pcap_pkthdr, bytes: *const u8);
 
-//pub struct pcap_t(());
-
 extern "C" {
     pub fn pcap_findalldevs(all_dev_sp: *mut *mut _pcap_if, err_buf: *mut u8) -> i32;
     pub fn pcap_freealldevs(all_dev_sp: *mut _pcap_if);
@@ -32,11 +30,21 @@ extern "C" {
         snaplen: i32,
         promisc: i32,
         to_ms: i32,
-        ebuf: *mut u8,
+        ebuf: *mut i8,
     ) -> pcap_t;
+
+    pub fn pcap_lib_version() -> *const i8;
 
     pub fn pcap_loop(p: pcap_t, cnt: i32, h: pcap_handler, u: *const ()) -> i32;
     pub fn pcap_close(p: pcap_t);
+
+    pub fn pcap_compile(
+        p: pcap_t,
+        fp: *const (), /*ptr to struct bpf_program*/
+        s: *const u8,
+        optimize: i32,
+        netmask: u32,
+    ) -> i32;
 }
 
 #[repr(C)]

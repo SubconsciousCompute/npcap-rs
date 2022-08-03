@@ -1,4 +1,5 @@
 fn main() {
+    println!("Libpcap version: {}", npcap_rs::version());
     let devs = npcap_rs::PCap::new().unwrap();
 
     let dev = devs
@@ -9,7 +10,7 @@ fn main() {
         let (listener, rx) = dev.open().unwrap();
         listener.run();
         while let Ok(pack) = rx.recv() {
-            println!("{:?}", pack);
+            println!("{}", pack.e_hdr);
         }
     }
 }

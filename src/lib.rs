@@ -3,7 +3,7 @@ mod raw;
 use std::ffi::CStr;
 use std::sync::mpsc;
 
-use raw::pcap_open_live;
+use raw::{pcap_lib_version, pcap_open_live};
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -80,11 +80,14 @@ impl Device {
 
     /// Open the current device for packet sniffing
     pub fn open(self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+        let mut err_buf = [0i8; 256];
+
         let name = self.name.as_ref().unwrap();
-        let handle = unsafe { pcap_open_live(name.as_ptr(), 65536, 1, 1000, std::ptr::null_mut()) };
+        let handle = unsafe { pcap_open_live(name.as_ptr(), 65536, 1, 1000, &mut err_buf as _) };
         if !handle.is_null() {
             Some(Listener::new(handle))
         } else {
+            eprintln!("{:?}", unsafe { std::ffi::CStr::from_ptr(&err_buf as _) });
             None
         }
     }
@@ -122,8 +125,96 @@ pub enum PacketType {
 
 #[derive(Debug)]
 pub struct Packet {
-    which: PacketType,
+    pub e_hdr: EthernetHdr,
+    //which: PacketType,
     len: u32,
+}
+
+#[derive(Debug)]
+pub struct EthernetHdr {
+    pub d_mac: (u8, u8, u8, u8, u8, u8),
+    pub s_mac: (u8, u8, u8, u8, u8, u8),
+    pub ether_type: u16,
+}
+
+impl EthernetHdr {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        // MAC header is atleast 14 bytes
+        assert!(bytes.len() > 14);
+
+        let mut cur = 0;
+
+        IpHeader::from_bytes(&bytes[14..]);
+
+        EthernetHdr {
+            d_mac: (
+                bytes[cur],
+                bytes[cur + 1],
+                bytes[cur + 2],
+                bytes[cur + 3],
+                bytes[cur + 4],
+                bytes[cur + 5],
+            ),
+            s_mac: (
+                bytes[cur + 6],
+                bytes[cur + 7],
+                bytes[cur + 8],
+                bytes[cur + 9],
+                bytes[cur + 10],
+                bytes[cur + 11],
+            ),
+            ether_type: u16::from_be_bytes(bytes[12..14].try_into().unwrap()),
+        }
+    }
+}
+
+impl std::fmt::Display for EthernetHdr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} -> {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            self.s_mac.0,
+            self.s_mac.1,
+            self.s_mac.2,
+            self.s_mac.3,
+            self.s_mac.4,
+            self.s_mac.5,
+            self.d_mac.0,
+            self.d_mac.1,
+            self.d_mac.2,
+            self.d_mac.3,
+            self.d_mac.4,
+            self.d_mac.5
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum IP {
+    IPv4,
+    IPv6,
+}
+
+#[derive(Debug)]
+pub struct IpHeader {
+    pub version: IP,
+}
+
+impl IpHeader {
+    fn from_bytes(bytes: &[u8]) {
+        let version = bytes[0] >> 4;
+
+        let version = match version {
+            4 => IP::IPv4,
+            6 => IP::IPv6,
+            _ => {
+                return;
+            }
+        };
+
+        if version == IP::IPv4 {
+        } else {
+        }
+    }
 }
 
 #[repr(C)]
@@ -142,8 +233,12 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let p_ptr = param as *const Listener;
     let param = unsafe { p_ptr.as_ref().unwrap() };
 
+    let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
+
+    let e_hdr = EthernetHdr::from_bytes(data);
+
     _ = param.tx.send(Packet {
-        which: PacketType::Ethernet,
+        e_hdr,
         len: header.len,
     });
 }
@@ -172,4 +267,9 @@ impl Drop for Listener {
         // close the handle on the capture device
         unsafe { raw::pcap_close(self.handle) }
     }
+}
+
+pub fn version() -> String {
+    let ptr = unsafe { std::ffi::CStr::from_ptr(raw::pcap_lib_version()) };
+    ptr.to_str().unwrap().to_string()
 }
