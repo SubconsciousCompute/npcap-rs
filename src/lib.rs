@@ -1,9 +1,11 @@
+#[cfg(feature = "non_raw")]
 mod raw;
+
+#[cfg(feature = "raw")]
+pub mod raw;
 
 use std::ffi::CStr;
 use std::sync::mpsc;
-
-use raw::{pcap_lib_version, pcap_open_live, sockaddr};
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -46,10 +48,10 @@ impl Drop for PCap {
 
 #[derive(Debug)]
 pub struct Address {
-    addr: Option<sockaddr>,
-    netmask: Option<sockaddr>,
-    broad_addr: Option<sockaddr>,
-    dst_addr: Option<sockaddr>,
+    addr: Option<raw::sockaddr>,
+    netmask: Option<raw::sockaddr>,
+    broad_addr: Option<raw::sockaddr>,
+    dst_addr: Option<raw::sockaddr>,
 }
 
 /// Represents a physical network interface i.e ethernet NIC/Wifi Card, etc...
@@ -112,7 +114,8 @@ impl Device {
         let mut err_buf = [0i8; 256];
 
         let name = self.name.as_ref().unwrap();
-        let handle = unsafe { pcap_open_live(name.as_ptr(), 65536, 1, 1000, &mut err_buf as _) };
+        let handle =
+            unsafe { raw::pcap_open_live(name.as_ptr(), 65536, 1, 1000, &mut err_buf as _) };
         if !handle.is_null() {
             Some(Listener::new(handle))
         } else {
@@ -216,6 +219,14 @@ impl std::fmt::Display for EthernetHdr {
     }
 }
 
+/// Handle that captures packet for a device
+/// This is returned when a device is opened for capture
+/// ```no_run
+/// fn main() {
+///     let dev: Device = ... ;
+///     let (listener, rx) = dev.open();
+/// }
+/// ```
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
@@ -262,6 +273,7 @@ impl Listener {
             });
     }
 
+    /// Set a filter on the device capturing packets
     pub fn set_filter(&self, dev: &Device, filter: &str) -> bool {
         let mut code = raw::bpf_program::default();
         let filter = std::ffi::CString::new(filter).unwrap();
@@ -295,6 +307,7 @@ impl Listener {
         }
     }
 
+    /// Get the next packet captured by the device
     pub fn next_packet(&self) -> Option<Packet> {
         let mut hdr = raw::pcap_pkthdr::default();
         let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };

@@ -1,7 +1,5 @@
 #![allow(non_camel_case_types)]
 
-use std::ptr::null;
-
 pub type pcap_t = *const ();
 
 #[derive(Debug, Default)]
@@ -57,6 +55,7 @@ extern "C" {
 
     pub fn pcap_next(p: pcap_t, h: &mut pcap_pkthdr) -> *const libc::c_uchar;
 
+    pub fn pcap_lookupdev(err_buf: *mut libc::c_char) -> *mut libc::c_char;
 }
 
 #[repr(C)]
@@ -87,18 +86,6 @@ pub struct _pcap_if {
     pub flags: u32,
 }
 
-impl _pcap_if {
-    pub fn new() -> Self {
-        Self {
-            next: null(),
-            name: null(),
-            desc: null(),
-            addresses: null(),
-            flags: 0,
-        }
-    }
-}
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct _pcap_addr {
@@ -109,26 +96,9 @@ pub struct _pcap_addr {
     pub dstaddr: *const sockaddr,
 }
 
-impl _pcap_addr {
-    fn new() -> Self {
-        Self {
-            next: null(),
-            addr: null(),
-            netmask: null(),
-            broad_addr: null(),
-            dstaddr: null(),
-        }
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct sockaddr {
     pub sa_family: u16,
     pub sa_data: [u8; 14],
-}
-
-pub struct sockaddr_in {
-    sin_family: libc::c_short,
-    port: libc::c_ushort,
 }
