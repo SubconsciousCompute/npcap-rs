@@ -40,11 +40,13 @@ extern "C" {
 
     pub fn pcap_compile(
         p: pcap_t,
-        fp: *const (), /*ptr to struct bpf_program*/
-        s: *const u8,
+        fp: *mut (), /*ptr to struct bpf_program*/
+        s: *const libc::c_char,
         optimize: i32,
         netmask: u32,
     ) -> libc::c_int;
+
+    pub fn pcap_setfilter(p: pcap_t, fp: *mut bpf_program) -> libc::c_int;
 
     pub fn pcap_dispatch(
         p: pcap_t,
@@ -55,6 +57,24 @@ extern "C" {
 
     pub fn pcap_next(p: pcap_t, h: &mut pcap_pkthdr) -> *const libc::c_uchar;
 
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct bpf_program {
+    len: libc::c_ushort,
+    // this is a pointer to ops in C but we dont care in Rust
+    // TODO: prolly port the ops struct or use a crate for bpf bindings
+    filter: *mut (),
+}
+
+impl Default for bpf_program {
+    fn default() -> Self {
+        Self {
+            len: 0,
+            filter: std::ptr::null_mut(),
+        }
+    }
 }
 
 #[repr(C)]
@@ -106,4 +126,9 @@ impl _pcap_addr {
 pub struct sockaddr {
     pub sa_family: u16,
     pub sa_data: [u8; 14],
+}
+
+pub struct sockaddr_in {
+    sin_family: libc::c_short,
+    port: libc::c_ushort,
 }

@@ -8,9 +8,12 @@ fn main() {
 
     if let Some(dev) = dev {
         let (listener, rx) = dev.open().unwrap();
+        println!("filter set: {}", listener.set_filter(&dev, "ip and tcp"));
+
         listener.run();
+
         while let Ok(pack) = rx.recv() {
-            println!("{:?}", pack);
+            println!("{} -> {}", pack.ip_hdr.src_addr, pack.ip_hdr.dest_addr);
         }
     }
 }
