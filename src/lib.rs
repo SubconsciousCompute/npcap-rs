@@ -221,7 +221,7 @@ impl std::fmt::Display for EthernetHdr {
 
 /// Handle that captures packet for a device
 /// This is returned when a device is opened for capture
-/// ```no_run
+/// ```ignore
 /// fn main() {
 ///     let dev: Device = ... ;
 ///     let (listener, rx) = dev.open();
