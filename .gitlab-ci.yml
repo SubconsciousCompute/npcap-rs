@@ -1,0 +1,36 @@
+stages:
+  - build
+  - deploy
+
+#
+# Windows
+#
+build:windows:
+  tags:
+    - windows
+  stage: build
+  script:
+    - powershell "dir env:"
+    - choco install -y python
+    - echo $env:PATH
+    - python.exe -m pip install doit
+    - python.exe dodo.py -v 2
+    - python.exe dodo.py run doc
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+
+# upload:windows:
+#   stage: deploy
+#   only:
+#     - tags
+#   tags:
+#     - windows
+#   needs:
+#     - job: "test:windows"
+#   script:
+#     - choco install python -y --force
+#     - python -m pip install typer requests --upgrade
+#     - python gitlab_pkgs.py upload dist
