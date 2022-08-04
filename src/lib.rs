@@ -3,7 +3,7 @@ mod raw;
 use std::ffi::CStr;
 use std::sync::mpsc;
 
-use raw::{pcap_lib_version, pcap_open_live};
+use raw::{pcap_lib_version, pcap_open_live, sockaddr};
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -44,6 +44,14 @@ impl Drop for PCap {
     }
 }
 
+#[derive(Debug)]
+pub struct Address {
+    addr: Option<sockaddr>,
+    netmask: Option<sockaddr>,
+    broad_addr: Option<sockaddr>,
+    dst_addr: Option<sockaddr>,
+}
+
 /// Represents a physical network interface i.e ethernet NIC/Wifi Card, etc...
 #[derive(Debug)]
 pub struct Device {
@@ -51,7 +59,7 @@ pub struct Device {
     pub name: Option<String>,
     /// Description of the device
     pub desc: Option<String>,
-    //address: raw::sockaddr,
+    addresses: Option<Address>,
 }
 
 impl Device {
@@ -72,14 +80,35 @@ impl Device {
             }
         };
 
+        let addr = if item.addresses.is_null() {
+            None
+        } else {
+            let (netmask, broad_addr, addr, dst_addr) = unsafe {
+                let addr = item.addresses.as_ref().unwrap();
+                (
+                    addr.netmask.as_ref().clone().map(|addr| addr.clone()),
+                    addr.broad_addr.as_ref().clone().map(|addr| addr.clone()),
+                    addr.addr.as_ref().clone().map(|addr| addr.clone()),
+                    addr.dstaddr.as_ref().clone().map(|addr| addr.clone()),
+                )
+            };
+            Some(Address {
+                netmask,
+                broad_addr,
+                addr,
+                dst_addr,
+            })
+        };
+
         Self {
             name,
-            desc, //address: item.addresses.as_ref().unwrap().clone(),
+            desc,
+            addresses: addr, //address: item.addresses.as_ref().unwrap().clone(),
         }
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
         let mut err_buf = [0i8; 256];
 
         let name = self.name.as_ref().unwrap();
@@ -126,6 +155,7 @@ pub enum PacketType {
 #[derive(Debug)]
 pub struct Packet {
     pub e_hdr: EthernetHdr,
+    pub ip_hdr: IPHeader,
     //which: PacketType,
     len: u32,
 }
@@ -143,8 +173,6 @@ impl EthernetHdr {
         assert!(bytes.len() > 14);
 
         let mut cur = 0;
-
-        IpHeader::from_bytes(&bytes[14..]);
 
         EthernetHdr {
             d_mac: (
@@ -188,35 +216,6 @@ impl std::fmt::Display for EthernetHdr {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum IP {
-    IPv4,
-    IPv6,
-}
-
-#[derive(Debug)]
-pub struct IpHeader {
-    pub version: IP,
-}
-
-impl IpHeader {
-    fn from_bytes(bytes: &[u8]) {
-        let version = bytes[0] >> 4;
-
-        let version = match version {
-            4 => IP::IPv4,
-            6 => IP::IPv6,
-            _ => {
-                return;
-            }
-        };
-
-        if version == IP::IPv4 {
-        } else {
-        }
-    }
-}
-
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
@@ -236,9 +235,11 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
 
     let e_hdr = EthernetHdr::from_bytes(data);
+    let ip_hdr = IPHeader::from_bytes(&data[14..]);
 
     _ = param.tx.send(Packet {
         e_hdr,
+        ip_hdr,
         len: header.len,
     });
 }
@@ -260,12 +261,111 @@ impl Listener {
                 raw::pcap_loop(self.handle, 0, pkt_handle, &self as *const _ as _);
             });
     }
+
+    pub fn set_filter(&self, dev: &Device, filter: &str) -> bool {
+        let mut code = raw::bpf_program::default();
+        let filter = std::ffi::CString::new(filter).unwrap();
+
+        // assuming we have addresses
+        let addrs = dev.addresses.as_ref().unwrap();
+
+        let netmask = if let Some(ref addr) = addrs.netmask {
+            // NOTE: 2..6 since the ip addr data starts at index 2
+            // 0..2 are port, 7..14 is padding and is filled with 0
+            u32::from_le_bytes(addr.sa_data[2..6].try_into().unwrap())
+        } else {
+            0xffffff
+        };
+
+        unsafe {
+            if raw::pcap_compile(
+                self.handle,
+                &mut code as *mut _ as _,
+                filter.as_ptr(),
+                1,
+                netmask,
+            ) < 0
+            {
+                false
+            } else {
+                // TODO: handle when pcap_setfilter fails
+                assert!(raw::pcap_setfilter(self.handle, &mut code as *mut _) == 0);
+                true
+            }
+        }
+    }
+
+    pub fn next_packet(&self) -> Option<Packet> {
+        let mut hdr = raw::pcap_pkthdr::default();
+        let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
+        if data_ptr.is_null() {
+            None
+        } else {
+            let data = unsafe { std::slice::from_raw_parts(data_ptr, hdr.len as usize) };
+            let e_hdr = EthernetHdr::from_bytes(data);
+
+            let ip_hdr = IPHeader::from_bytes(&data[14..]);
+
+            Some(Packet {
+                e_hdr,
+                ip_hdr,
+                len: hdr.len,
+            })
+        }
+    }
 }
 
 impl Drop for Listener {
     fn drop(&mut self) {
         // close the handle on the capture device
         unsafe { raw::pcap_close(self.handle) }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct IP {
+    byte1: libc::c_uchar,
+    byte2: libc::c_uchar,
+    byte3: libc::c_uchar,
+    byte4: libc::c_uchar,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct IPHeader {
+    ver_ihl: libc::c_uchar,
+    tos: libc::c_uchar,
+    tlen: libc::c_uchar,
+    ident: libc::c_ushort,
+    flags_fo: libc::c_ushort,
+    ttl: libc::c_uchar,
+    proto: libc::c_uchar,
+    crc: libc::c_ushort,
+    pub src_addr: std::net::Ipv4Addr,
+    pub dest_addr: std::net::Ipv4Addr,
+    op_pad: libc::c_int,
+}
+
+impl IPHeader {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        // idk how i came up with the indexes but ok
+        let s_ip = std::net::Ipv4Addr::new(bytes[12], bytes[13], bytes[14], bytes[11]);
+        let d_ip = std::net::Ipv4Addr::new(bytes[16], bytes[17], bytes[18], bytes[15]);
+
+        IPHeader {
+            ver_ihl: bytes[0],
+            tos: bytes[1],
+            tlen: bytes[2],
+            ident: u16::from_le_bytes(bytes[3..5].try_into().unwrap()),
+            flags_fo: u16::from_le_bytes(bytes[5..7].try_into().unwrap()),
+            ttl: bytes[7],
+            proto: bytes[8],
+            crc: u16::from_le_bytes(bytes[9..11].try_into().unwrap()),
+            src_addr: s_ip,
+            dest_addr: d_ip,
+            op_pad: 0,
+        }
     }
 }
 

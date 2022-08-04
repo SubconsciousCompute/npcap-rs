@@ -1,3 +1,5 @@
 /target
 /Cargo.lock
 /.vscode
+test.c
+a.exe
