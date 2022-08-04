@@ -260,6 +260,21 @@ impl Listener {
                 raw::pcap_loop(self.handle, 0, pkt_handle, &self as *const _ as _);
             });
     }
+
+    pub fn next_packet(&self) -> Option<Packet> {
+        let mut hdr = raw::pcap_pkthdr::default();
+        let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
+        if data_ptr.is_null() {
+            None
+        } else {
+            let data = unsafe { std::slice::from_raw_parts(data_ptr, hdr.len as usize) };
+            let e_hdr = EthernetHdr::from_bytes(data);
+            Some(Packet {
+                e_hdr,
+                len: hdr.len,
+            })
+        }
+    }
 }
 
 impl Drop for Listener {

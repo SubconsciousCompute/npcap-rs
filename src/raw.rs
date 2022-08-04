@@ -4,14 +4,14 @@ use std::ptr::null;
 
 pub type pcap_t = *const ();
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 #[repr(C)]
 pub struct timeval {
     pub tv_sec: i32,
     pub tv_usec: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 #[repr(C)]
 pub struct pcap_pkthdr {
     pub ts: timeval,
@@ -52,6 +52,8 @@ extern "C" {
         callback: pcap_handler,
         user: *const (),
     ) -> libc::c_int;
+
+    pub fn pcap_next(p: pcap_t, h: &mut pcap_pkthdr) -> *const libc::c_uchar;
 
 }
 
