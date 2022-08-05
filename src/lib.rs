@@ -31,6 +31,7 @@ impl PCap {
         } else {
             // dont really wanna deal with errors yet
             // let's just return None and not deal with errbuf shit
+            panic!("Failed to bind.");
             None
         }
     }
@@ -424,6 +425,7 @@ impl Drop for Listener {
     }
 }
 
+<<<<<<< HEAD
 #[repr(C)]
 #[derive(Debug)]
 pub struct IP {
@@ -475,6 +477,9 @@ impl IPHeader {
     }
 }
 
+=======
+/// npcap version.
+>>>>>>> 25fa36a (temp commit.)
 pub fn version() -> String {
     let ptr = unsafe { std::ffi::CStr::from_ptr(raw::pcap_lib_version()) };
     ptr.to_str().unwrap().to_string()
