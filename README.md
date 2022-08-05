@@ -1,3 +1,5 @@
+![](https://gitlab.subcom.tech/subcom/npcap-rs/badges/main/pipeline.svg)
+
 # npcap_rs
 
 __WIP__
