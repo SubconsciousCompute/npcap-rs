@@ -35,6 +35,12 @@ impl PCap {
             }
         }
     }
+
+    /// Open all the interfaces for packet capture. Only works on Linux
+    #[cfg(target_os = "linux")]
+    pub fn open_all(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+        open_device("rpcap://any")
+    }
 }
 
 impl Drop for PCap {
@@ -111,18 +117,26 @@ impl Device {
 
     /// Open the current device for packet sniffing
     pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
-        let mut err_buf = [0i8; 256];
+        open_device(self.name.as_ref().unwrap())
+    }
+}
 
-        let name = self.name.as_ref().unwrap().clone();
-        let name = std::ffi::CString::new(name).unwrap();
-        let handle =
-            unsafe { raw::pcap_open_live(name.as_ptr(), 65536, 1, 1000, &mut err_buf as _) };
-        if !handle.is_null() {
-            Some(Listener::new(handle))
-        } else {
-            eprintln!("{:?}", unsafe { std::ffi::CStr::from_ptr(&err_buf as _) });
-            None
-        }
+pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+    let mut err_buf = [0i8; 256];
+    let name = std::ffi::CString::new(dev.clone()).unwrap();
+
+    let ptr = if dev == "" {
+        std::ptr::null()
+    } else {
+        name.as_ptr()
+    };
+
+    let handle = unsafe { raw::pcap_open_live(ptr, 65536, 1, 1000, &mut err_buf as _) };
+    if !handle.is_null() {
+        Some(Listener::new(handle))
+    } else {
+        eprintln!("{:?}", unsafe { std::ffi::CStr::from_ptr(&err_buf as _) });
+        None
     }
 }
 
