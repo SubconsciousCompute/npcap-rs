@@ -44,7 +44,7 @@ impl PCap {
     /// Preference is always given to WiFi connections.
     pub fn default_device(&self) -> Option<Device> {
         if let Ok(devhint) = std::env::var("NPCAP_DEVICE_HINT") {
-            self.find_device(devhint)
+            self.find_device(&devhint)
         } else {
             let devs: Vec<_> = self.devices().collect();
             let wifis: Vec<_> = devs.into_iter().filter(|dev| dev.is_wifi()).collect();
