@@ -1,7 +1,8 @@
 //! Bindings to npcap
 //!
-#[allow(dead_code)]
+//! (c) 2021, Subconscious Compute
 
+#[allow(dead_code, unused_imports)]
 #[cfg(feature = "non_raw")]
 mod raw;
 
@@ -10,6 +11,8 @@ pub mod raw;
 
 use std::ffi::CStr;
 use std::sync::mpsc;
+
+use raw::pcap_open_live;
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -227,7 +230,7 @@ pub struct Packet {
     pub e_hdr: EthernetHdr,
     pub ip_hdr: IPHeader,
     //which: PacketType,
-    len: u32,
+    _len: u32,
 }
 
 #[derive(Debug)]
@@ -243,6 +246,8 @@ impl EthernetHdr {
         assert!(bytes.len() > 14);
 
         let cur = 0;
+
+        IpHeader::from_bytes(&bytes[14..]);
 
         EthernetHdr {
             d_mac: (
@@ -286,14 +291,31 @@ impl std::fmt::Display for EthernetHdr {
     }
 }
 
-/// Handle that captures packet for a device
-/// This is returned when a device is opened for capture
-/// ```ignore
-/// fn main() {
-///     let dev: Device = ... ;
-///     let (listener, rx) = dev.open();
-/// }
-/// ```
+#[derive(Debug, Eq, PartialEq)]
+pub enum IP {
+    IPv4,
+    IPv6,
+    NA,
+}
+
+#[derive(Debug)]
+pub struct IpHeader {
+    pub version: IP,
+}
+
+impl IpHeader {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let version = bytes[0] >> 4;
+
+        let version = match version {
+            4 => IP::IPv4,
+            6 => IP::IPv6,
+            _ => IP::NA,
+        };
+        IpHeader { version }
+    }
+}
+
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
