@@ -25,5 +25,5 @@ npcap-rs = { version = "0.1", default-features = false, features = ["raw"] }
 # Examples
 
 ```
-cargo run --example list.rs
+cargo run --example list
 ```

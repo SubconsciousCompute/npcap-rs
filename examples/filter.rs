@@ -1,10 +1,12 @@
-fn main() {
-    println!("Libpcap version: {}", npcap_rs::version());
-    let devs = npcap_rs::PCap::new().unwrap();
+//! Shows the use of filter.
+//! Author: David <david.j@subcom.tech>
+//!
 
-    let dev = devs
-        .devices()
-        .find(|dev| dev.desc.as_ref().unwrap() == "Realtek(R) PCI(e) Ethernet Controller");
+fn main() {
+
+    println!("Libpcap version: {}", npcap_rs::version());
+    let pcap = npcap_rs::PCap::new().unwrap();
+    let dev = pcap.find_device("Wireless");
 
     if let Some(dev) = dev {
         let (listener, rx) = dev.open().unwrap();
