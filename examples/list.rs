@@ -5,9 +5,7 @@ use std::io::{self, Write};
 
 fn main() {
     let pcap = npcap_rs::PCap::new().unwrap();
-
     let devs: Vec<_> = pcap.active_devices();
-
     let mut sel = 0;
     for (idx, dev) in devs.iter().enumerate() {
         println!(
