@@ -113,7 +113,8 @@ impl Device {
     pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
         let mut err_buf = [0i8; 256];
 
-        let name = self.name.as_ref().unwrap();
+        let name = self.name.as_ref().unwrap().clone();
+        let name = std::ffi::CString::new(name).unwrap();
         let handle =
             unsafe { raw::pcap_open_live(name.as_ptr(), 65536, 1, 1000, &mut err_buf as _) };
         if !handle.is_null() {
