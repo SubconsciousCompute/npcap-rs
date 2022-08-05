@@ -39,16 +39,33 @@ impl PCap {
         }
     }
 
-    /// Return the currently active device. Beware that it may not work. If it fails to return the
-    /// currently active device, use `devices` to get the list of devices and use a `filter` to get
-    /// device your are looking for.
-    pub fn default_device(&self) {}
+    /// Return a single device. If environment variable NPCAP_DEVICE_HINT is set, a
+    /// device with same name is returned. Else first device that is not a loopback is returned.
+    /// Preference is always given to WiFi connections.
+    pub fn default_device(&self) -> Option<Device> {
+        if let Ok(devhint) = std::env::var("NPCAP_DEVICE_HINT") {
+            self.find_device(devhint)
+        } else {
+            let devs: Vec<_> = self.devices().collect();
+            let wifis: Vec<_> = devs.into_iter().filter(|dev| dev.is_wifi()).collect();
+            if wifis.len() > 0 {
+                wifis.into_iter().nth(0)
+            } else {
+                let devs: Vec<_> = self.devices().collect();
+                devs.into_iter().filter(|dev| dev.is_in_use()).nth(0)
+            }
+        }
+    }
+
+    /// Find a device that that the given `needle` in its description.
+    pub fn find_device(&self, needle: &str) -> Option<Device> {
+        self.devices()
+            .find(|dev| dev.desc.as_ref().unwrap().contains(needle))
+    }
 
     /// Return currently active devices.
     pub fn active_devices<'a>(&self) -> Vec<Device> {
-        self.devices()
-            .filter(|dev| dev.is_in_use())
-            .collect()
+        self.devices().filter(|dev| dev.is_in_use()).collect()
     }
 }
 
