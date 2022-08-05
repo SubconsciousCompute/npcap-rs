@@ -362,9 +362,13 @@ pub struct IPHeader {
 
 impl IPHeader {
     pub fn from_bytes(bytes: &[u8]) -> Self {
+        /*
+        correct: 35.186.224.25 -> 192.168.0.117
+        wrong: 35.186.224.195 -> 192.168.0.25
+         */
         // idk how i came up with the indexes but ok
-        let s_ip = std::net::Ipv4Addr::new(bytes[12], bytes[13], bytes[14], bytes[11]);
-        let d_ip = std::net::Ipv4Addr::new(bytes[16], bytes[17], bytes[18], bytes[15]);
+        let s_ip = std::net::Ipv4Addr::new(bytes[12], bytes[13], bytes[14], bytes[15]);
+        let d_ip = std::net::Ipv4Addr::new(bytes[16], bytes[17], bytes[18], bytes[19]);
 
         IPHeader {
             ver_ihl: bytes[0],
