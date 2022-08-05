@@ -1,4 +1,9 @@
+//!
+
 #![allow(non_camel_case_types)]
+
+use pktparse::tcp::TcpOption;
+use pktparse::{ipv4, tcp};
 
 pub type pcap_t = *const ();
 
@@ -101,4 +106,17 @@ pub struct _pcap_addr {
 pub struct sockaddr {
     pub sa_family: u16,
     pub sa_data: [u8; 14],
+}
+
+/// Parse the given binary into a tcp packet.
+pub fn parse_tcp_header(data: &[u8]) -> Option<tcp::TcpHeader> {
+    if let Ok((remaining, _)) = ipv4::parse_ipv4_header(data) {
+        if let Ok((_, tcp_hdr)) = tcp::parse_tcp_header(remaining) {
+            Some(tcp_hdr)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
