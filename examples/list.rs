@@ -1,3 +1,6 @@
+//! List all devices.
+//!
+
 fn main() {
     let pcap = npcap_rs::PCap::new().unwrap();
     let mut sel = 0;
@@ -10,9 +13,10 @@ fn main() {
             dev.desc.as_ref().unwrap()
         );
     }
-    print!("Select an interface: ");
-    let mut inp = String::new();
 
+    print!("Select an interface: ");
+    io::stdout::flush();
+    let mut inp = String::new();
     std::io::stdin().read_line(&mut inp);
 
     let sel = inp.trim().parse::<u8>().unwrap();
