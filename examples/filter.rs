@@ -1,10 +1,12 @@
+//! Shows the use of filter.
+//! Author: David <david.j@subcom.tech>
+//!
+
 fn main() {
     println!("Libpcap version: {}", npcap_rs::version());
-    let devs = npcap_rs::PCap::new().unwrap();
 
-    let dev = devs
-        .devices()
-        .find(|dev| dev.desc.as_ref().unwrap() == "Realtek(R) PCI(e) Ethernet Controller");
+    let pcap = npcap_rs::PCap::new().unwrap();
+    let dev = pcap.default_device();
 
     if let Some(dev) = dev {
         let (listener, rx) = dev.open().unwrap();

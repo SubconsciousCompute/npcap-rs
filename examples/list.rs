@@ -1,23 +1,29 @@
 //! List all devices.
 //!
 
+use std::io::{self, Write};
+
 fn main() {
     let pcap = npcap_rs::PCap::new().unwrap();
+
+    let devs: Vec<_> = pcap.active_devices();
+
     let mut sel = 0;
-    let devs: Vec<_> = pcap.devices().collect();
     for (idx, dev) in devs.iter().enumerate() {
         println!(
-            "{}: {} - {}",
+            "{}: {} '{}' {:#04X?}",
             idx,
             dev.name.as_ref().unwrap(),
-            dev.desc.as_ref().unwrap()
+            dev.desc.as_ref().unwrap(),
+            dev.flags,
         );
     }
 
     print!("Select an interface: ");
-    io::stdout::flush();
+    io::stdout().flush().unwrap();
+
     let mut inp = String::new();
-    std::io::stdin().read_line(&mut inp);
+    io::stdin().read_line(&mut inp);
 
     let sel = inp.trim().parse::<u8>().unwrap();
     println!("Selected: {}", sel);

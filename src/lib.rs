@@ -1,3 +1,6 @@
+//! Bindings to npcap
+//!
+
 #[cfg(feature = "non_raw")]
 mod raw;
 
@@ -35,6 +38,18 @@ impl PCap {
             }
         }
     }
+
+    /// Return the currently active device. Beware that it may not work. If it fails to return the
+    /// currently active device, use `devices` to get the list of devices and use a `filter` to get
+    /// device your are looking for.
+    pub fn default_device(&self) {}
+
+    /// Return currently active devices.
+    pub fn active_devices<'a>(&self) -> Vec<Device> {
+        self.devices()
+            .filter(|dev| dev.is_in_use())
+            .collect()
+    }
 }
 
 impl Drop for PCap {
@@ -62,6 +77,8 @@ pub struct Device {
     /// Description of the device
     pub desc: Option<String>,
     addresses: Option<Address>,
+    /// flags.
+    pub flags: u32,
 }
 
 impl Device {
@@ -102,13 +119,15 @@ impl Device {
             })
         };
 
+        let flags = item.flags;
+
         Self {
             name,
             desc,
             addresses: addr, //address: item.addresses.as_ref().unwrap().clone(),
+            flags,           // https://github.com/the-tcpdump-group/libpcap/blob/master/pcap/pcap.h
         }
     }
-
     /// Open the current device for packet sniffing
     pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
         let mut err_buf = [0i8; 256];
@@ -122,6 +141,36 @@ impl Device {
             eprintln!("{:?}", unsafe { std::ffi::CStr::from_ptr(&err_buf as _) });
             None
         }
+    }
+
+    #[inline(always)]
+    fn is_flag_set(&self, flag: u32) -> bool {
+        (self.flags & flag) != 0
+    }
+
+    /// Interface is up
+    pub fn is_up(&self) -> bool {
+        self.is_flag_set(0x0000_0002)
+    }
+
+    /// Interface is running.
+    pub fn is_running(&self) -> bool {
+        self.is_flag_set(0x0000_0004)
+    }
+
+    /// interface is wireless (*NOT* necessarily Wi-Fi!)
+    pub fn is_wifi(&self) -> bool {
+        self.is_flag_set(0x0000_0008)
+    }
+
+    /// connected
+    pub fn is_connected(&self) -> bool {
+        self.is_flag_set(0x0000_0010)
+    }
+
+    /// up and running.
+    pub fn is_in_use(&self) -> bool {
+        self.is_connected() & self.is_up() && self.is_running()
     }
 }
 
@@ -175,7 +224,7 @@ impl EthernetHdr {
         // MAC header is atleast 14 bytes
         assert!(bytes.len() > 14);
 
-        let mut cur = 0;
+        let cur = 0;
 
         EthernetHdr {
             d_mac: (
