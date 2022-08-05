@@ -231,7 +231,7 @@ pub struct Packet {
     pub e_hdr: EthernetHdr,
     pub ip_hdr: IPHeader,
     //which: PacketType,
-    _len: u32,
+    len: u32,
 }
 
 #[derive(Debug)]
@@ -247,8 +247,6 @@ impl EthernetHdr {
         assert!(bytes.len() > 14);
 
         let cur = 0;
-
-        IpHeader::from_bytes(&bytes[14..]);
 
         EthernetHdr {
             d_mac: (
@@ -289,31 +287,6 @@ impl std::fmt::Display for EthernetHdr {
             self.d_mac.4,
             self.d_mac.5
         ))
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum IP {
-    IPv4,
-    IPv6,
-    NA,
-}
-
-#[derive(Debug)]
-pub struct IpHeader {
-    pub version: IP,
-}
-
-impl IpHeader {
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let version = bytes[0] >> 4;
-
-        let version = match version {
-            4 => IP::IPv4,
-            6 => IP::IPv6,
-            _ => IP::NA,
-        };
-        IpHeader { version }
     }
 }
 
@@ -425,7 +398,6 @@ impl Drop for Listener {
     }
 }
 
-<<<<<<< HEAD
 #[repr(C)]
 #[derive(Debug)]
 pub struct IP {
@@ -477,9 +449,7 @@ impl IPHeader {
     }
 }
 
-=======
 /// npcap version.
->>>>>>> 25fa36a (temp commit.)
 pub fn version() -> String {
     let ptr = unsafe { std::ffi::CStr::from_ptr(raw::pcap_lib_version()) };
     ptr.to_str().unwrap().to_string()
