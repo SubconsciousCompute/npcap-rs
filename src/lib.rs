@@ -1,5 +1,6 @@
 //! Bindings to npcap
 //!
+#[allow(dead_code)]
 
 #[cfg(feature = "non_raw")]
 mod raw;
