@@ -12,9 +12,7 @@ pub mod raw;
 use std::ffi::CStr;
 use std::sync::mpsc;
 
-use raw::{parse_tcp_header};
-
-use pktparse::tcp::TcpHeader;
+use raw::parse_tcp_header;
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -153,7 +151,7 @@ impl Device {
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<TcpHeader>)> {
+    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
         let mut err_buf = [0i8; 256];
 
         let name = self.name.as_ref().unwrap();
@@ -224,7 +222,7 @@ impl<'a> Iterator for DeviceIter<'a> {
 pub struct Listener {
     //dev: Device,
     handle: raw::pcap_t,
-    tx: mpsc::Sender<TcpHeader>,
+    tx: mpsc::Sender<raw::HeaderType>,
 }
 
 unsafe impl Sync for Listener {}
@@ -237,13 +235,14 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let param = unsafe { p_ptr.as_ref().unwrap() };
 
     let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
-    let pkt = parse_tcp_header(&data);
-    _ = param.tx.send(pkt.unwrap());
+    if let Some(pkt) = parse_tcp_header(&data) {
+        _ = param.tx.send(pkt);
+    }
 }
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<TcpHeader>) {
+    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<raw::HeaderType>) {
         let (tx, rx) = mpsc::channel();
         (Self { tx, handle }, rx)
     }
@@ -294,7 +293,7 @@ impl Listener {
     }
 
     /// Get the next packet captured by the device
-    pub fn next_packet(&self) -> Option<TcpHeader> {
+    pub fn next_packet(&self) -> Option<raw::HeaderType> {
         let mut hdr = raw::pcap_pkthdr::default();
         let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
         if data_ptr.is_null() {

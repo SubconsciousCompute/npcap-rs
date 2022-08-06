@@ -5,6 +5,12 @@
 use pktparse::tcp::TcpOption;
 use pktparse::{ipv4, tcp};
 
+#[derive(Debug)]
+pub enum HeaderType {
+    Tcp(tcp::TcpHeader),
+    IPv4(ipv4::IPv4Header),
+}
+
 pub type pcap_t = *const ();
 
 #[derive(Debug, Default)]
@@ -109,10 +115,10 @@ pub struct sockaddr {
 }
 
 /// Parse the given binary into a tcp packet.
-pub fn parse_tcp_header(data: &[u8]) -> Option<tcp::TcpHeader> {
-    if let Ok((remaining, _)) = ipv4::parse_ipv4_header(data) {
+pub fn parse_tcp_header(data: &[u8]) -> Option<HeaderType> {
+    if let Ok((remaining, ipv4header)) = ipv4::parse_ipv4_header(data) {
         if let Ok((_, tcp_hdr)) = tcp::parse_tcp_header(remaining) {
-            Some(tcp_hdr)
+            Some(HeaderType::IPv4(ipv4header))
         } else {
             None
         }
