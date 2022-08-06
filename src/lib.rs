@@ -12,7 +12,7 @@ pub mod raw;
 use std::ffi::CStr;
 use std::sync::mpsc;
 
-use raw::parse_tcp_header;
+use raw::parse_raw;
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -235,7 +235,7 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let param = unsafe { p_ptr.as_ref().unwrap() };
 
     let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
-    if let Some(pkt) = parse_tcp_header(&data) {
+    if let Some(pkt) = parse_raw(&data) {
         _ = param.tx.send(pkt);
     }
 }
@@ -300,7 +300,7 @@ impl Listener {
             None
         } else {
             let data = unsafe { std::slice::from_raw_parts(data_ptr, hdr.len as usize) };
-            parse_tcp_header(&data)
+            parse_raw(&data)
         }
     }
 }
