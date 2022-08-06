@@ -1,4 +1,22 @@
+//!
+
 #![allow(non_camel_case_types)]
+
+use tracing::warn;
+
+use pktparse::{
+    ethernet::{self, EtherType},
+    tcp::TcpOption,
+};
+use pktparse::{ipv4, ipv6, tcp, udp};
+
+#[derive(Debug)]
+pub enum HeaderType {
+    Tcp(tcp::TcpHeader),
+    Udp(udp::UdpHeader),
+    IPv4(ipv4::IPv4Header),
+    IPv6(ipv6::IPv6Header),
+}
 
 pub type pcap_t = *const ();
 
@@ -101,4 +119,30 @@ pub struct _pcap_addr {
 pub struct sockaddr {
     pub sa_family: u16,
     pub sa_data: [u8; 14],
+}
+
+/// Parse the raw packet.
+///
+/// ## Notes
+///
+/// 1. Every packet lives in an Ethernet frame.
+/// 2. MTU may restrict the size of packet. UDP packet can be as big as 2^16-1 bytes (65535 bytes)
+///    but the Ethernet frame can only contain 1500 bytes of data. Larger UDP packets will get
+///    defragmented.
+///
+/// ## References:
+/// - https://jvns.ca/blog/2017/02/07/mtu/
+pub fn parse_raw(data: &[u8]) -> Option<HeaderType> {
+    if let Ok((remaining, eth_frame)) = ethernet::parse_ethernet_frame(data) {
+        let etype = eth_frame.ethertype;
+        if etype == EtherType::IPv4 {
+            if let Ok((remaining, header)) = ipv4::parse_ipv4_header(remaining) {
+                return Some(HeaderType::IPv4(header));
+            }
+        } else {
+            warn!(" - Unsupported Ethernet frame type: {:?}", etype);
+        }
+        return None;
+    }
+    return None;
 }
