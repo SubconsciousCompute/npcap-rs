@@ -12,6 +12,8 @@ raw = []
 
 [dependencies]
 libc = "0.2"
+pktparse = "0.7.1"
+tracing = "0.1.36"
 
 [build-dependencies]
 bindgen = "0.60.1"

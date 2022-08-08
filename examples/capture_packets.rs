@@ -5,6 +5,8 @@ fn main() {
     let pcap = npcap_rs::PCap::new().unwrap();
 
     let hint = "8811CU".to_string();
+    println!("Using {} for device. Please change this value", hint);
+
     if let Some(dev) = pcap.find_device(&hint) {
         println!("Capturing from device: {:?}", dev.desc);
         let (listener, rx) = dev.open().unwrap();

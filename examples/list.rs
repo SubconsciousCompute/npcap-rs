@@ -30,7 +30,7 @@ fn main() {
         listener.run();
 
         while let Ok(pack) = rx.recv() {
-            println!("{} -> {}", pack.ip_hdr.src_addr, pack.ip_hdr.dest_addr);
+            println!("{:?}", pack)
         }
     }
 }

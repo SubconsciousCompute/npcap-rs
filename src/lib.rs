@@ -1,6 +1,9 @@
 //! Bindings to npcap
 //!
-#[allow(dead_code)]
+//! (c) 2021, Subconscious Compute
+
+#[allow(dead_code, unused_imports)]
+
 #[cfg(feature = "non_raw")]
 mod raw;
 
@@ -9,6 +12,8 @@ pub mod raw;
 
 use std::ffi::CStr;
 use std::sync::mpsc;
+
+use raw::parse_raw;
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
@@ -27,7 +32,7 @@ impl PCap {
         } else {
             // dont really wanna deal with errors yet
             // let's just return None and not deal with errbuf shit
-            None
+            panic!("Failed to bind.");
         }
     }
 
@@ -151,8 +156,9 @@ impl Device {
             flags,           // https://github.com/the-tcpdump-group/libpcap/blob/master/pcap/pcap.h
         }
     }
+
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
         open_device(self.name.as_ref().unwrap())
     }
 
@@ -187,7 +193,7 @@ impl Device {
     }
 }
 
-pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
     let mut err_buf = [0i8; 256];
     let name = std::ffi::CString::new(dev.clone()).unwrap();
 
@@ -228,91 +234,11 @@ impl<'a> Iterator for DeviceIter<'a> {
     }
 }
 
-#[derive(Debug)]
-pub enum PacketType {
-    IP,
-    Ethernet,
-    TCP,
-    UDP,
-}
-
-#[derive(Debug)]
-pub struct Packet {
-    pub e_hdr: EthernetHdr,
-    pub ip_hdr: IPHeader,
-    //which: PacketType,
-    len: u32,
-}
-
-#[derive(Debug)]
-pub struct EthernetHdr {
-    pub d_mac: (u8, u8, u8, u8, u8, u8),
-    pub s_mac: (u8, u8, u8, u8, u8, u8),
-    pub ether_type: u16,
-}
-
-impl EthernetHdr {
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        // MAC header is atleast 14 bytes
-        assert!(bytes.len() > 14);
-
-        let cur = 0;
-
-        EthernetHdr {
-            d_mac: (
-                bytes[cur],
-                bytes[cur + 1],
-                bytes[cur + 2],
-                bytes[cur + 3],
-                bytes[cur + 4],
-                bytes[cur + 5],
-            ),
-            s_mac: (
-                bytes[cur + 6],
-                bytes[cur + 7],
-                bytes[cur + 8],
-                bytes[cur + 9],
-                bytes[cur + 10],
-                bytes[cur + 11],
-            ),
-            ether_type: u16::from_be_bytes(bytes[12..14].try_into().unwrap()),
-        }
-    }
-}
-
-impl std::fmt::Display for EthernetHdr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x} -> {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-            self.s_mac.0,
-            self.s_mac.1,
-            self.s_mac.2,
-            self.s_mac.3,
-            self.s_mac.4,
-            self.s_mac.5,
-            self.d_mac.0,
-            self.d_mac.1,
-            self.d_mac.2,
-            self.d_mac.3,
-            self.d_mac.4,
-            self.d_mac.5
-        ))
-    }
-}
-
-/// Handle that captures packet for a device
-/// This is returned when a device is opened for capture
-/// ```ignore
-/// fn main() {
-///     let dev: Device = ... ;
-///     let (listener, rx) = dev.open();
-/// }
-/// ```
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
     handle: raw::pcap_t,
-    tx: mpsc::Sender<Packet>,
+    tx: mpsc::Sender<raw::HeaderType>,
 }
 
 unsafe impl Sync for Listener {}
@@ -325,20 +251,14 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let param = unsafe { p_ptr.as_ref().unwrap() };
 
     let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
-
-    let e_hdr = EthernetHdr::from_bytes(data);
-    let ip_hdr = IPHeader::from_bytes(&data[14..]);
-
-    _ = param.tx.send(Packet {
-        e_hdr,
-        ip_hdr,
-        len: header.len,
-    });
+    if let Some(pkt) = parse_raw(&data) {
+        _ = param.tx.send(pkt);
+    }
 }
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
+    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<raw::HeaderType>) {
         let (tx, rx) = mpsc::channel();
         (Self { tx, handle }, rx)
     }
@@ -389,22 +309,14 @@ impl Listener {
     }
 
     /// Get the next packet captured by the device
-    pub fn next_packet(&self) -> Option<Packet> {
+    pub fn next_packet(&self) -> Option<raw::HeaderType> {
         let mut hdr = raw::pcap_pkthdr::default();
         let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
         if data_ptr.is_null() {
             None
         } else {
             let data = unsafe { std::slice::from_raw_parts(data_ptr, hdr.len as usize) };
-            let e_hdr = EthernetHdr::from_bytes(data);
-
-            let ip_hdr = IPHeader::from_bytes(&data[14..]);
-
-            Some(Packet {
-                e_hdr,
-                ip_hdr,
-                len: hdr.len,
-            })
+            parse_raw(&data)
         }
     }
 }
@@ -416,57 +328,7 @@ impl Drop for Listener {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct IP {
-    byte1: libc::c_uchar,
-    byte2: libc::c_uchar,
-    byte3: libc::c_uchar,
-    byte4: libc::c_uchar,
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct IPHeader {
-    ver_ihl: libc::c_uchar,
-    tos: libc::c_uchar,
-    tlen: libc::c_uchar,
-    ident: libc::c_ushort,
-    flags_fo: libc::c_ushort,
-    ttl: libc::c_uchar,
-    proto: libc::c_uchar,
-    crc: libc::c_ushort,
-    pub src_addr: std::net::Ipv4Addr,
-    pub dest_addr: std::net::Ipv4Addr,
-    op_pad: libc::c_int,
-}
-
-impl IPHeader {
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        /*
-        correct: 35.186.224.25 -> 192.168.0.117
-        wrong: 35.186.224.195 -> 192.168.0.25
-         */
-        // idk how i came up with the indexes but ok
-        let s_ip = std::net::Ipv4Addr::new(bytes[12], bytes[13], bytes[14], bytes[15]);
-        let d_ip = std::net::Ipv4Addr::new(bytes[16], bytes[17], bytes[18], bytes[19]);
-
-        IPHeader {
-            ver_ihl: bytes[0],
-            tos: bytes[1],
-            tlen: bytes[2],
-            ident: u16::from_le_bytes(bytes[3..5].try_into().unwrap()),
-            flags_fo: u16::from_le_bytes(bytes[5..7].try_into().unwrap()),
-            ttl: bytes[7],
-            proto: bytes[8],
-            crc: u16::from_le_bytes(bytes[9..11].try_into().unwrap()),
-            src_addr: s_ip,
-            dest_addr: d_ip,
-            op_pad: 0,
-        }
-    }
-}
-
+/// npcap version.
 pub fn version() -> String {
     let ptr = unsafe { std::ffi::CStr::from_ptr(raw::pcap_lib_version()) };
     ptr.to_str().unwrap().to_string()
