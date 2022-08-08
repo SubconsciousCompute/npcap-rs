@@ -46,7 +46,7 @@ impl PCap {
 
     /// Open all the interfaces for packet capture. Only works on Linux
     #[cfg(target_os = "linux")]
-    pub fn open_all(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+    pub fn open_all(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
         open_device("rpcap://any")
     }
 
