@@ -42,7 +42,7 @@ extern "C" {
     pub fn pcap_freealldevs(all_dev_sp: *mut _pcap_if);
 
     pub fn pcap_open_live(
-        device: *const u8,
+        device: *const i8,
         snaplen: i32,
         promisc: i32,
         to_ms: i32,
