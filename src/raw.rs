@@ -23,8 +23,8 @@ pub type pcap_t = *const ();
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct timeval {
-    pub tv_sec: i32,
-    pub tv_usec: i32,
+    pub tv_sec: libc::c_long,
+    pub tv_usec: libc::c_long,
 }
 
 #[derive(Debug, Default)]

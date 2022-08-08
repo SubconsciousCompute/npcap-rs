@@ -9,11 +9,8 @@ fn main() {
     let mut sel = 0;
     for (idx, dev) in devs.iter().enumerate() {
         println!(
-            "{}: {} '{}' {:#04X?}",
-            idx,
-            dev.name.as_ref().unwrap(),
-            dev.desc.as_ref().unwrap(),
-            dev.flags,
+            "{}: {:?} '{:?}' {:#04X?}",
+            idx, dev.name, dev.desc, dev.flags,
         );
     }
 
