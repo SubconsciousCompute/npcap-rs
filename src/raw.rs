@@ -8,16 +8,6 @@ use pktparse::{
     ethernet::{self, EtherType},
     tcp::TcpOption,
 };
-use pktparse::{ipv4, ipv6, tcp, udp};
-
-#[derive(Debug)]
-pub enum HeaderType {
-    Tcp(tcp::TcpHeader),
-    Udp(udp::UdpHeader),
-    IPv4(ipv4::IPv4Header),
-    IPv6(ipv6::IPv6Header),
-}
-
 pub type pcap_t = *const ();
 
 #[derive(Debug, Default)]
@@ -132,12 +122,12 @@ pub struct sockaddr {
 ///
 /// ## References:
 /// - https://jvns.ca/blog/2017/02/07/mtu/
-pub fn parse_raw(data: &[u8]) -> Option<HeaderType> {
+pub fn parse_raw(data: &[u8]) -> Option<crate::HeaderType> {
     if let Ok((remaining, eth_frame)) = ethernet::parse_ethernet_frame(data) {
         let etype = eth_frame.ethertype;
         if etype == EtherType::IPv4 {
-            if let Ok((remaining, header)) = ipv4::parse_ipv4_header(remaining) {
-                return Some(HeaderType::IPv4(header));
+            if let Ok((remaining, header)) = pktparse::ipv4::parse_ipv4_header(remaining) {
+                return Some(crate::HeaderType::IPv4(header));
             }
         } else {
             warn!(" - Unsupported Ethernet frame type: {:?}", etype);

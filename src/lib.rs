@@ -3,7 +3,6 @@
 //! (c) 2021, Subconscious Compute
 
 #[allow(dead_code, unused_imports)]
-
 #[cfg(feature = "non_raw")]
 mod raw;
 
@@ -158,7 +157,7 @@ impl Device {
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
+    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<HeaderType>)> {
         open_device(self.name.as_ref().unwrap())
     }
 
@@ -193,7 +192,7 @@ impl Device {
     }
 }
 
-pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
+pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<HeaderType>)> {
     let mut err_buf = [0i8; 256];
     let name = std::ffi::CString::new(dev.clone()).unwrap();
 
@@ -234,11 +233,21 @@ impl<'a> Iterator for DeviceIter<'a> {
     }
 }
 
+use pktparse::{ipv4, ipv6, tcp, udp};
+
+#[derive(Debug)]
+pub enum HeaderType {
+    Tcp(tcp::TcpHeader),
+    Udp(udp::UdpHeader),
+    IPv4(ipv4::IPv4Header),
+    IPv6(ipv6::IPv6Header),
+}
+
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
     handle: raw::pcap_t,
-    tx: mpsc::Sender<raw::HeaderType>,
+    tx: mpsc::Sender<HeaderType>,
 }
 
 unsafe impl Sync for Listener {}
@@ -251,14 +260,14 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
     let param = unsafe { p_ptr.as_ref().unwrap() };
 
     let data = unsafe { std::slice::from_raw_parts(pkt_data, header.len as usize) };
-    if let Some(pkt) = parse_raw(&data) {
+    if let Some(pkt) = parse_raw(data) {
         _ = param.tx.send(pkt);
     }
 }
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<raw::HeaderType>) {
+    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<HeaderType>) {
         let (tx, rx) = mpsc::channel();
         (Self { tx, handle }, rx)
     }
@@ -309,14 +318,14 @@ impl Listener {
     }
 
     /// Get the next packet captured by the device
-    pub fn next_packet(&self) -> Option<raw::HeaderType> {
+    pub fn next_packet(&self) -> Option<HeaderType> {
         let mut hdr = raw::pcap_pkthdr::default();
         let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
         if data_ptr.is_null() {
             None
         } else {
             let data = unsafe { std::slice::from_raw_parts(data_ptr, hdr.len as usize) };
-            parse_raw(&data)
+            parse_raw(data)
         }
     }
 }
