@@ -56,13 +56,11 @@ impl PCap {
         if let Ok(devhint) = std::env::var("NPCAP_DEVICE_HINT") {
             self.find_device(&devhint)
         } else {
-            let devs: Vec<_> = self.devices().collect();
-            let wifis: Vec<_> = devs.into_iter().filter(|dev| dev.is_wifi()).collect();
-            if wifis.len() > 0 {
+            let wifis: Vec<_> = self.devices().filter(|dev| dev.is_wifi()).collect();
+            if !wifis.is_empty() {
                 wifis.into_iter().nth(0)
             } else {
-                let devs: Vec<_> = self.devices().collect();
-                devs.into_iter().filter(|dev| dev.is_in_use()).nth(0)
+                self.devices().filter(|dev| dev.is_in_use()).nth(0)
             }
         }
     }
@@ -74,7 +72,7 @@ impl PCap {
     }
 
     /// Return currently active devices.
-    pub fn active_devices<'a>(&self) -> Vec<Device> {
+    pub fn active_devices(&self) -> Vec<Device> {
         self.devices().filter(|dev| dev.is_in_use()).collect()
     }
 }
@@ -132,10 +130,10 @@ impl Device {
             let (netmask, broad_addr, addr, dst_addr) = unsafe {
                 let addr = item.addresses.as_ref().unwrap();
                 (
-                    addr.netmask.as_ref().clone().map(|addr| addr.clone()),
-                    addr.broad_addr.as_ref().clone().map(|addr| addr.clone()),
-                    addr.addr.as_ref().clone().map(|addr| addr.clone()),
-                    addr.dstaddr.as_ref().clone().map(|addr| addr.clone()),
+                    addr.netmask.as_ref().copied(),
+                    addr.broad_addr.as_ref().copied(),
+                    addr.addr.as_ref().copied(),
+                    addr.dstaddr.as_ref().copied(),
                 )
             };
             Some(Address {
@@ -194,9 +192,9 @@ impl Device {
 
 pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<HeaderType>)> {
     let mut err_buf = [0i8; 256];
-    let name = std::ffi::CString::new(dev.clone()).unwrap();
+    let name = std::ffi::CString::new(dev.to_string()).unwrap();
 
-    let ptr = if dev == "" {
+    let ptr = if dev.is_empty() {
         std::ptr::null()
     } else {
         name.as_ptr()

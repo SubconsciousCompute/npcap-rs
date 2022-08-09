@@ -134,5 +134,5 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::HeaderType> {
         }
         return None;
     }
-    return None;
+    None
 }
