@@ -246,7 +246,8 @@ pub enum ApplicationProtocol {
 
 #[derive(Debug)]
 pub enum TCPApps {
-    HTTP,
+    HTTP(http_bytes::Request),
+    Unimpl,
 }
 
 #[derive(Debug)]

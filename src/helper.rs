@@ -28,10 +28,22 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                 match header.protocol {
                     pktparse::ip::IPProtocol::TCP => {
                         if let Ok((remaining, hdr)) = pktparse::tcp::parse_tcp_header(remaining) {
-                            packet.tcp = Some(TCPPacket {
+                            let mut headers_buffer = vec![http_bytes::EMPTY_HEADER; 20];
+                            let mut pack = TCPPacket {
                                 hdr,
-                                data: crate::TCPApps::HTTP,
-                            });
+                                data: crate::TCPApps::Unimpl,
+                            };
+                            if let Ok((http_header)) = http_bytes::parse_request_header(
+                                remaining,
+                                &mut headers_buffer,
+                                Some(http_bytes::http::uri::Scheme::HTTP),
+                            ) {
+                                if let Some((req, remain)) = http_header {
+                                    println!("{:?}", header);
+                                    pack.data = crate::TCPApps::HTTP(req);
+                                }
+                            }
+                            packet.tcp = Some(pack);
                         }
                     }
                     _ => {

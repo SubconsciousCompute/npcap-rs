@@ -20,7 +20,7 @@ fn main() {
         listener.run();
 
         while let Ok(pack) = rx.recv() {
-            println!("{:?}", pack);
+            println!("{:#?}", pack);
         }
     }
 }
