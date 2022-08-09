@@ -2,17 +2,14 @@
 //!
 //! (c) 2021, Subconscious Compute
 
+pub mod helper;
 #[allow(dead_code, unused_imports)]
-#[cfg(feature = "non_raw")]
-mod raw;
-
-#[cfg(feature = "raw")]
 pub mod raw;
 
 use std::ffi::CStr;
 use std::sync::mpsc;
 
-use raw::parse_raw;
+use helper::parse_raw;
 
 /// container that allows for interfacing with network devices
 pub struct PCap {
