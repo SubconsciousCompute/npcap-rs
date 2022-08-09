@@ -1,5 +1,7 @@
 use pktparse::ethernet::{self, EtherType};
 
+use crate::{Packet, TCPPacket};
+
 /// Parse the raw packet.
 ///
 /// ## Notes
@@ -11,12 +13,32 @@ use pktparse::ethernet::{self, EtherType};
 ///
 /// ## References:
 /// - https://jvns.ca/blog/2017/02/07/mtu/
-pub fn parse_raw(data: &[u8]) -> Option<crate::HeaderType> {
+pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
     if let Ok((remaining, eth_frame)) = ethernet::parse_ethernet_frame(data) {
         let etype = eth_frame.ethertype;
         if etype == EtherType::IPv4 {
             if let Ok((remaining, header)) = pktparse::ipv4::parse_ipv4_header(remaining) {
-                return Some(crate::HeaderType::IPv4(header));
+                let mut packet = Packet {
+                    ether_hdr: eth_frame,
+                    ip_hdr: header,
+                    // assume it's tcp
+                    app_prot: crate::ApplicationProtocol::TCP,
+                    tcp: None,
+                };
+                match header.protocol {
+                    pktparse::ip::IPProtocol::TCP => {
+                        if let Ok((remaining, hdr)) = pktparse::tcp::parse_tcp_header(remaining) {
+                            packet.tcp = Some(TCPPacket {
+                                hdr,
+                                data: crate::TCPApps::HTTP,
+                            });
+                        }
+                    }
+                    _ => {
+                        unimplemented!()
+                    }
+                }
+                return Some(packet);
             }
         } else {
             eprintln!(" - Unsupported Ethernet frame type: {:?}", etype);
