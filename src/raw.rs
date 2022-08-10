@@ -77,6 +77,7 @@ extern "C" {
     pub fn pcap_next(p: pcap_t, h: &mut pcap_pkthdr) -> *const libc::c_uchar;
 
     /// Return the first valid device in the system.
+    #[deprecated(note = "Use pcap_findalldevs and use the first device in the list")]
     pub fn pcap_lookupdev(err_buf: *mut libc::c_char) -> *mut libc::c_char;
 
     /// Switch between blocking and nonblocking mode.
