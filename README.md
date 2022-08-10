@@ -8,18 +8,15 @@ Rust binding for npcap library.
 
 # Usage
 
+You can enable these optional features for additional functionality.
+- http-parse - Parses HTTP headers
+- cbeam-chan - Use crossbeam channels instead of `std::sync::mpsc`
+
 To use the safe Rust bindings, Add the following to your Cargo.toml
 
 ```toml
 [dependencies]
 npcap-rs = "0.1"
-```
-
-To use the raw unsafe Rust bindings, Add the following to your Cargo.toml
-
-```toml
-[dependencies]
-npcap-rs = { version = "0.1", default-features = false, features = ["raw"] }
 ```
 
 # Examples
