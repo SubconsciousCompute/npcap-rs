@@ -247,7 +247,7 @@ pub enum ApplicationProtocol {
 #[derive(Debug)]
 pub enum TCPApps {
     HTTP(http_bytes::Request),
-    Unimpl,
+    Generic(Option<Vec<u8>>),
 }
 
 #[derive(Debug)]
@@ -257,12 +257,18 @@ pub struct TCPPacket {
 }
 
 #[derive(Debug)]
+pub struct UDPPacket {
+    pub hdr: udp::UdpHeader,
+    pub data: Option<Vec<u8>>,
+}
+
+#[derive(Debug)]
 pub struct Packet {
     pub ether_hdr: ethernet::EthernetFrame,
     pub ip_hdr: ipv4::IPv4Header,
     pub app_prot: ApplicationProtocol,
     pub tcp: Option<TCPPacket>,
-    // udp_hdr: Option<tcp::TcpHeader>
+    pub udp: Option<UDPPacket>,
 }
 
 #[repr(C)]

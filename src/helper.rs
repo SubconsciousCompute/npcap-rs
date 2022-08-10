@@ -1,6 +1,6 @@
 use pktparse::ethernet::{self, EtherType};
 
-use crate::{Packet, TCPPacket};
+use crate::{ApplicationProtocol, Packet, TCPPacket};
 
 /// Parse the raw packet.
 ///
@@ -24,6 +24,7 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                     // assume it's tcp
                     app_prot: crate::ApplicationProtocol::TCP,
                     tcp: None,
+                    udp: None,
                 };
                 match header.protocol {
                     pktparse::ip::IPProtocol::TCP => {
@@ -31,7 +32,7 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                             let mut headers_buffer = vec![http_bytes::EMPTY_HEADER; 20];
                             let mut pack = TCPPacket {
                                 hdr,
-                                data: crate::TCPApps::Unimpl,
+                                data: crate::TCPApps::Generic(None),
                             };
                             if let Ok((http_header)) = http_bytes::parse_request_header(
                                 remaining,
@@ -39,11 +40,31 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                                 Some(http_bytes::http::uri::Scheme::HTTP),
                             ) {
                                 if let Some((req, remain)) = http_header {
-                                    println!("{:?}", header);
                                     pack.data = crate::TCPApps::HTTP(req);
                                 }
+                            } else {
+                                let data = if !remaining.is_empty() {
+                                    Some(remaining.to_vec())
+                                } else {
+                                    None
+                                };
+                                pack.data = crate::TCPApps::Generic(data);
                             }
                             packet.tcp = Some(pack);
+                        }
+                    }
+                    pktparse::ip::IPProtocol::UDP => {
+                        if let Ok((remaining, hdr)) = pktparse::udp::parse_udp_header(remaining) {
+                            let data = if !remaining.is_empty() {
+                                // might be expensive `.to_vec` call
+                                Some(remaining.to_vec())
+                            } else {
+                                None
+                            };
+
+                            let mut pack = crate::UDPPacket { hdr, data };
+                            packet.app_prot = ApplicationProtocol::UDP;
+                            packet.udp = Some(pack);
                         }
                     }
                     _ => {
