@@ -69,14 +69,14 @@ def task_build():
     CARGO = which_cargo()
     assert CARGO is not None
     return dict(
-        actions=[f"{CARGO} check", f"{CARGO} build --all-targets"],
+        actions=[f"{CARGO} check", f"{CARGO} build --all-targets --features http-parse"],
         task_dep=["setup_rust"],
     )
 
 
 def task_test():
     global CARGO
-    return dict(actions=[f"{CARGO} test"], task_dep=["build"])
+    return dict(actions=[f"{CARGO} test --features http-parse"], task_dep=["build"])
 
 
 def task_doc():
