@@ -87,10 +87,10 @@ impl Drop for PCap {
 
 #[derive(Debug)]
 pub struct Address {
-    addr: Option<raw::sockaddr>,
-    netmask: Option<raw::sockaddr>,
-    broad_addr: Option<raw::sockaddr>,
-    dst_addr: Option<raw::sockaddr>,
+    pub addr: Option<raw::sockaddr>,
+    pub netmask: Option<raw::sockaddr>,
+    pub broad_addr: Option<raw::sockaddr>,
+    pub dst_addr: Option<raw::sockaddr>,
 }
 
 /// Represents a physical network interface i.e ethernet NIC/Wifi Card, etc...
