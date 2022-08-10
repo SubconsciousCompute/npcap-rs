@@ -27,16 +27,7 @@ fn main() {
         listener.run();
 
         while let Ok(pack) = rx.recv() {
-            match pack.app_prot {
-                npcap_rs::ApplicationProtocol::TCP => {
-                    let pack = pack.tcp.unwrap();
-                    match pack.data {
-                        npcap_rs::TCPApps::Generic(_) => println!("Generic TCP packet"),
-                        npcap_rs::TCPApps::HTTP(data) => println!("HTTP packet: {:?}", data),
-                    }
-                }
-                _ => unimplemented!(),
-            }
+            println!("{:?}", pack);
         }
     }
 }

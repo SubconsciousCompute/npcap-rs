@@ -2,6 +2,16 @@ use pktparse::ethernet::{self, EtherType};
 
 use crate::{ApplicationProtocol, Packet, TCPPacket};
 
+macro_rules! clone_data {
+    ($slice: expr) => {
+        if !$slice.is_empty() {
+            Some($slice.to_vec())
+        } else {
+            None
+        }
+    };
+}
+
 /// Parse the raw packet.
 ///
 /// ## Notes
@@ -34,20 +44,24 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                                 hdr,
                                 data: crate::TCPApps::Generic(None),
                             };
-                            if let Ok((http_header)) = http_bytes::parse_request_header(
-                                remaining,
-                                &mut headers_buffer,
-                                Some(http_bytes::http::uri::Scheme::HTTP),
-                            ) {
-                                if let Some((req, remain)) = http_header {
-                                    pack.data = crate::TCPApps::HTTP(req);
-                                }
-                            } else {
-                                let data = if !remaining.is_empty() {
-                                    Some(remaining.to_vec())
+                            #[cfg(feature = "http-parse")]
+                            {
+                                if let Ok((http_header)) = http_bytes::parse_request_header(
+                                    remaining,
+                                    &mut headers_buffer,
+                                    Some(http_bytes::http::uri::Scheme::HTTP),
+                                ) {
+                                    if let Some((req, remain)) = http_header {
+                                        pack.data = crate::TCPApps::HTTP(req);
+                                    }
                                 } else {
-                                    None
-                                };
+                                    let data = clone_data!(remaining);
+                                    pack.data = crate::TCPApps::Generic(data);
+                                }
+                            }
+                            #[cfg(not(feature = "http-parse"))]
+                            {
+                                let data = clone_data!(remaining);
                                 pack.data = crate::TCPApps::Generic(data);
                             }
                             packet.tcp = Some(pack);

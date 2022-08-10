@@ -8,7 +8,10 @@ edition = "2021"
 [dependencies]
 libc = "0.2"
 pktparse = "0.7.1"
-http-bytes = "0.1.0"
+http-bytes = { version = "0.1.0", optional = true }
+
+[features]
+http-parse = ["dep:http-bytes"]
 
 [build-dependencies]
 bindgen = "0.60.1"

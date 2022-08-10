@@ -246,6 +246,7 @@ pub enum ApplicationProtocol {
 
 #[derive(Debug)]
 pub enum TCPApps {
+    #[cfg(feature = "http-parse")]
     HTTP(http_bytes::Request),
     Generic(Option<Vec<u8>>),
 }
