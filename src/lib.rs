@@ -42,7 +42,9 @@ impl PCap {
 
     /// Open all the interfaces for packet capture. Only works on Linux
     #[cfg(target_os = "linux")]
-    pub fn open_all(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
+    pub fn open_all(&self) -> Option<(Listener, recv!(raw::HeaderType))> {
+        use helper::recv;
+
         open_device("rpcap://any")
     }
 
@@ -152,7 +154,7 @@ impl Device {
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+    pub fn open(&self) -> Option<(Listener, helper::Rx<Packet>)> {
         open_device(self.name.as_ref().unwrap())
     }
 
@@ -187,7 +189,7 @@ impl Device {
     }
 }
 
-pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<Packet>)> {
+pub fn open_device(dev: &str) -> Option<(Listener, helper::Rx<Packet>)> {
     let mut err_buf = [0i8; 256];
     let name = std::ffi::CString::new(dev.to_string()).unwrap();
 
@@ -276,7 +278,7 @@ pub struct Packet {
 pub struct Listener {
     //dev: Device,
     handle: raw::pcap_t,
-    tx: mpsc::Sender<Packet>,
+    tx: helper::Tx<Packet>,
 }
 
 unsafe impl Sync for Listener {}
@@ -296,8 +298,8 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<Packet>) {
-        let (tx, rx) = mpsc::channel();
+    pub fn new(handle: raw::pcap_t) -> (Self, helper::Rx<Packet>) {
+        let (tx, rx) = helper::channel();
         (Self { tx, handle }, rx)
     }
 

@@ -39,7 +39,9 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                 match header.protocol {
                     pktparse::ip::IPProtocol::TCP => {
                         if let Ok((remaining, hdr)) = pktparse::tcp::parse_tcp_header(remaining) {
+                            #[cfg(feature = "http-parse")]
                             let mut headers_buffer = vec![http_bytes::EMPTY_HEADER; 20];
+
                             let mut pack = TCPPacket {
                                 hdr,
                                 data: crate::TCPApps::Generic(None),
@@ -93,4 +95,32 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
         return None;
     }
     None
+}
+
+#[cfg(feature = "cbeam-chan")]
+use crossbeam_channel::{unbounded, Receiver, Sender};
+
+#[cfg(feature = "cbeam-chan")]
+pub type Rx<T> = Receiver<T>;
+
+#[cfg(not(feature = "cbeam-chan"))]
+pub type Rx<T> = mpsc::Receiver<T>;
+
+#[cfg(feature = "cbeam-chan")]
+pub type Tx<T> = Sender<T>;
+
+#[cfg(not(feature = "cbeam-chan"))]
+pub type Tx<T> = mpsc::Sender<T>;
+
+#[cfg(feature = "cbeam-chan")]
+pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
+    unbounded()
+}
+
+#[cfg(not(feature = "cbeam-chan"))]
+use std::sync::mpsc;
+
+#[cfg(not(feature = "cbeam-chan"))]
+pub fn channel<T>() -> (mpsc::Sender<T>, mpsc::Receiver<T>) {
+    mpsc::channel()
 }
