@@ -42,7 +42,9 @@ impl PCap {
 
     /// Open all the interfaces for packet capture. Only works on Linux
     #[cfg(target_os = "linux")]
-    pub fn open_all(&self) -> Option<(Listener, mpsc::Receiver<raw::HeaderType>)> {
+    pub fn open_all(&self) -> Option<(Listener, recv!(raw::HeaderType))> {
+        use helper::recv;
+
         open_device("rpcap://any")
     }
 
@@ -85,10 +87,10 @@ impl Drop for PCap {
 
 #[derive(Debug)]
 pub struct Address {
-    addr: Option<raw::sockaddr>,
-    netmask: Option<raw::sockaddr>,
-    broad_addr: Option<raw::sockaddr>,
-    dst_addr: Option<raw::sockaddr>,
+    pub addr: Option<raw::sockaddr>,
+    pub netmask: Option<raw::sockaddr>,
+    pub broad_addr: Option<raw::sockaddr>,
+    pub dst_addr: Option<raw::sockaddr>,
 }
 
 /// Represents a physical network interface i.e ethernet NIC/Wifi Card, etc...
@@ -152,7 +154,7 @@ impl Device {
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, mpsc::Receiver<HeaderType>)> {
+    pub fn open(&self) -> Option<(Listener, helper::Rx<Packet>)> {
         open_device(self.name.as_ref().unwrap())
     }
 
@@ -187,7 +189,7 @@ impl Device {
     }
 }
 
-pub fn open_device(dev: &str) -> Option<(Listener, mpsc::Receiver<HeaderType>)> {
+pub fn open_device(dev: &str) -> Option<(Listener, helper::Rx<Packet>)> {
     let mut err_buf = [0i8; 256];
     let name = std::ffi::CString::new(dev.to_string()).unwrap();
 
@@ -228,7 +230,7 @@ impl<'a> Iterator for DeviceIter<'a> {
     }
 }
 
-use pktparse::{ipv4, ipv6, tcp, udp};
+use pktparse::{ethernet, ipv4, ipv6, tcp, udp};
 
 #[derive(Debug)]
 pub enum HeaderType {
@@ -238,11 +240,45 @@ pub enum HeaderType {
     IPv6(ipv6::IPv6Header),
 }
 
+#[derive(Debug)]
+pub enum ApplicationProtocol {
+    TCP,
+    UDP,
+}
+
+#[derive(Debug)]
+pub enum TCPApps {
+    #[cfg(feature = "http-parse")]
+    HTTP(http_bytes::Request),
+    Generic(Option<Vec<u8>>),
+}
+
+#[derive(Debug)]
+pub struct TCPPacket {
+    pub hdr: tcp::TcpHeader,
+    pub data: TCPApps,
+}
+
+#[derive(Debug)]
+pub struct UDPPacket {
+    pub hdr: udp::UdpHeader,
+    pub data: Option<Vec<u8>>,
+}
+
+#[derive(Debug)]
+pub struct Packet {
+    pub ether_hdr: ethernet::EthernetFrame,
+    pub ip_hdr: ipv4::IPv4Header,
+    pub app_prot: ApplicationProtocol,
+    pub tcp: Option<TCPPacket>,
+    pub udp: Option<UDPPacket>,
+}
+
 #[repr(C)]
 pub struct Listener {
     //dev: Device,
     handle: raw::pcap_t,
-    tx: mpsc::Sender<HeaderType>,
+    tx: helper::Tx<Packet>,
 }
 
 unsafe impl Sync for Listener {}
@@ -262,8 +298,8 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, mpsc::Receiver<HeaderType>) {
-        let (tx, rx) = mpsc::channel();
+    pub fn new(handle: raw::pcap_t) -> (Self, helper::Rx<Packet>) {
+        let (tx, rx) = helper::channel();
         (Self { tx, handle }, rx)
     }
 
@@ -313,7 +349,7 @@ impl Listener {
     }
 
     /// Get the next packet captured by the device
-    pub fn next_packet(&self) -> Option<HeaderType> {
+    pub fn next_packet(&self) -> Option<Packet> {
         let mut hdr = raw::pcap_pkthdr::default();
         let data_ptr = unsafe { raw::pcap_next(self.handle, &mut hdr) };
         if data_ptr.is_null() {
