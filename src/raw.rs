@@ -115,6 +115,7 @@ extern "C" {
     pub fn pcap_dump(user: *mut libc::c_uchar, h: *const pcap_pkthdr, sp: *const libc::c_uchar);
 
     /// Return the file position for a "savefile".
+    ///
     /// TODO: *mut T where T: pcap_dumper_t instead of *mut ()
     pub fn pcap_dump_ftell(t: *mut ()) -> libc::c_long;
 
@@ -159,6 +160,7 @@ extern "C" {
     pub fn pcap_file(p: pcap_t) -> *mut libc::FILE;
 
     /// Return statistics on current capture.
+    ///
     /// TODO: Add definition of struct pcap_stat.
     pub fn pcap_stats(p: pcap_t, ps: *mut ()) -> libc::c_int;
 
@@ -172,6 +174,7 @@ extern "C" {
     pub fn pcap_strerror(error: libc::c_int) -> *mut libc::c_char;
 
     /// return the standard I/O stream of the 'savefile' opened by pcap_dump_open().
+    ///
     /// TODO: Add definition of struct pcap_dumper_t
     pub fn pcap_dump_file(p: *mut ()) -> *mut libc::FILE;
 
@@ -179,10 +182,12 @@ extern "C" {
     /// so that any packets written with pcap_dump()
     /// but not yet written to the ``savefile'' will be written.
     /// -1 is returned on error, 0 on success.
+    ///
     /// TODO: Add definition of struct pcap_dumper_t
     pub fn pcap_dump_flush(p: *mut ()) -> libc::c_int;
 
     ///Closes a savefile.
+    ///
     /// TODO: Add definition of struct pcap_dumper_t
     pub fn pcap_dump_close(p: *mut ());
 }
