@@ -6,7 +6,13 @@ __WIP__
 
 Rust binding for npcap library. 
 
+# Prerequisite
+
+- Install Npcap from [here](https://npcap.com/#download)
+- Download Npcap SDK and extract the SDK in the source tree under third-party folder
+
 # Usage
+
 
 You can enable these optional features for additional functionality.
 - http-parse - Parses HTTP headers
