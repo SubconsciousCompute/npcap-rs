@@ -10,9 +10,9 @@ Rust binding for npcap library.
 
 - Install Npcap from [here](https://npcap.com/#download)
 - Download Npcap SDK and extract the SDK in the source tree under third-party folder
+- Set the NPCAP_RS_LIB_DIR to the directory where library is installed.
 
 # Usage
-
 
 You can enable these optional features for additional functionality.
 - http-parse - Parses HTTP headers
