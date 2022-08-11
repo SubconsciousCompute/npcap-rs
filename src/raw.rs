@@ -160,9 +160,7 @@ extern "C" {
     pub fn pcap_file(p: pcap_t) -> *mut libc::FILE;
 
     /// Return statistics on current capture.
-    ///
-    /// TODO: Add definition of struct pcap_stat.
-    pub fn pcap_stats(p: pcap_t, ps: *mut ()) -> libc::c_int;
+    pub fn pcap_stats(p: pcap_t, ps: *mut pcap_stat)-> libc::c_int;
 
     ///print the text of the last pcap library error on stderr, prefixed by prefix.
     pub fn pcap_perror(p: pcap_t, prefix: *mut libc::c_char);
@@ -178,9 +176,9 @@ extern "C" {
     /// TODO: Add definition of struct pcap_dumper_t
     pub fn pcap_dump_file(p: *mut ()) -> *mut libc::FILE;
 
-    /// Flushes the output buffer to the ``savefile,''
+    /// Flushes the output buffer to the savefile,
     /// so that any packets written with pcap_dump()
-    /// but not yet written to the ``savefile'' will be written.
+    /// but not yet written to the savefile will be written.
     /// -1 is returned on error, 0 on success.
     ///
     /// TODO: Add definition of struct pcap_dumper_t
@@ -235,4 +233,13 @@ pub struct _pcap_addr {
 pub struct sockaddr {
     pub sa_family: u16,
     pub sa_data: [u8; 14],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct pcap_stat {
+    pub ps_recv: libc::c_uint,
+    pub ps_drop: libc::c_uint,
+    pub ps_ifdrop: libc::c_uint,
+    pub bs_capt: libc::c_uint,
 }
