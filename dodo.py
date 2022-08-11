@@ -55,16 +55,23 @@ def install_npcap_sdk_windows():
         print(f'>> {setupfile} already exists. I assume that you have installed it.')
         return True
 
+    extract_at = Path(tempfile.gettempdir()) / "npcapped"
+
     # else download and install.
     urllib.request.urlretrieve("https://npcap.com/dist/npcap-sdk-1.13.zip", setupfile)
-    return dict(action=f"Expand-Archive npcap-sdk-1.13.zip")
+
+    if not os.path.exists(extract_at):
+        os.mkdir(extract_at)
+
+    action = f"Expand-Archive {setupfile} {extract_at}"
+    return dict(action=action)
 
 def task_bootstrap():
     """Bootstrap Windows"""
 
     if IS_WINDOWS:
         actions = ["choco.exe install -y rustup.install"]
-        actions += [install_npcap_windows()]
+        actions += [install_npcap_windows(), install_npcap_sdk_windows()]
     else:
         actions = ["curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"]
 
@@ -83,9 +90,13 @@ def task_build():
     global CARGO
     CARGO = which_cargo()
     assert CARGO is not None
-    setupfile = Path(tempfile.gettempdir()) / "npcap-sdk-1.13"
+
+    # setup the dir where the lib is
+    setupfile = Path(Path(tempfile.gettempdir()) / "npcapped\\Lib\\x64").__str__()
+    os.environ["NPCAP_RS_LIB_DIR"] = setupfile
+
     return dict(
-            actions=[f"$env:NPCAP_RS_LIB_DIR = "{setupfile}"",f"{CARGO} check", f"{CARGO} build --all-targets --features http-parse"],
+            actions=[f"{CARGO} check", f"{CARGO} build --all-targets --features http-parse"],
         task_dep=["setup_rust"],
     )
 

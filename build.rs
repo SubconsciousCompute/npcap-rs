@@ -5,7 +5,7 @@ fn main() {
     {
         let path = env::var("NPCAP_RS_LIB_DIR");
         if let Ok(path) = path {
-            println!("cargo:rustc-link-search=native={}", path);
+            println!("cargo:rustc-link-search=all={}", path);
             println!("cargo:rustc-link-lib=static=wpcap");
         } else {
             panic!("Couldn't find the path to npcap");
