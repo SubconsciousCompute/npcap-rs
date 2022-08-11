@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import subprocess
 import platform
+import zipfile
 from pathlib import Path
 
 # Set CARGO_HOME and RUSTUP_HOME to make sure that rustup and cargo are
@@ -63,8 +64,10 @@ def install_npcap_sdk_windows():
     if not os.path.exists(extract_at):
         os.mkdir(extract_at)
 
-    action = f"Expand-Archive {setupfile} {extract_at}"
-    return dict(action=action)
+    with zipfile.ZipFile(setupfile, "r") as ref:
+        ref.extractall(extract_at)
+
+    return dict(action="")
 
 def task_bootstrap():
     """Bootstrap Windows"""
