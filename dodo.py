@@ -43,6 +43,21 @@ def install_npcap_windows():
     urllib.request.urlretrieve("https://npcap.com/dist/npcap-1.70.exe", setupfile)
     return dict(action=f"Invoke-Command -ScriptBlock {{ {setupfile} /silent }}")
 
+def install_npcap_sdk_windows():
+    import urllib.request
+
+    print('Installing npcap sdk')
+    setupfile = Path(tempfile.gettempdir()) / "npcap-sdk-1.13.zip"
+
+    # If setupfile already exists then we assume that npcap is already
+    # installed. It may not be true but true-enough for CICD pipelines.
+    if setupfile.exists():
+        print(f'>> {setupfile} already exists. I assume that you have installed it.')
+        return True
+
+    # else download and install.
+    urllib.request.urlretrieve("https://npcap.com/dist/npcap-sdk-1.13.zip", setupfile)
+    return dict(action=f"Expand-Archive npcap-sdk-1.13.zip")
 
 def task_bootstrap():
     """Bootstrap Windows"""
@@ -68,8 +83,9 @@ def task_build():
     global CARGO
     CARGO = which_cargo()
     assert CARGO is not None
+    setupfile = Path(tempfile.gettempdir()) / "npcap-sdk-1.13"
     return dict(
-        actions=[f"{CARGO} check", f"{CARGO} build --all-targets --features http-parse"],
+            actions=[f"$env:NPCAP_RS_LIB_DIR = "{setupfile}"",f"{CARGO} check", f"{CARGO} build --all-targets --features http-parse"],
         task_dep=["setup_rust"],
     )
 
