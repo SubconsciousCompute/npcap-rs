@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: 
+      run: |
         powershell "dir env:"
         choco install -y python
         echo $env:PATH
