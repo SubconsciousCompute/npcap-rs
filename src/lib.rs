@@ -314,6 +314,15 @@ impl Listener {
             });
     }
 
+    /// Get the handle to a capture.
+    /// # Safety:
+    /// This method is unsafe because `Listener` handles the lifetime of it.
+    /// It maybe invalid if Listener gets dropped
+    /// and the handle is used there after.
+    pub unsafe fn as_raw_handle(&self) -> raw::pcap_t {
+        self.handle
+    }
+
     /// Set a filter on the device capturing packets
     pub fn set_filter(&self, dev: &Device, filter: &str) -> bool {
         let mut code = raw::bpf_program::default();
