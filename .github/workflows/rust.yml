@@ -11,12 +11,14 @@ env:
 
 jobs:
   build:
-
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --all-targets --features http-parse --verbose
-    - name: Run tests
-      run: cargo test --features http-parse --verbose
+      run: |
+        powershell "dir env:"
+        choco install -y python
+        echo $env:PATH
+        python.exe -m pip install doit
+        python.exe dodo.py -v 2
+        python.exe dodo.py run doc
