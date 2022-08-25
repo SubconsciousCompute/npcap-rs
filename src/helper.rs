@@ -84,7 +84,8 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                         }
                     }
                     _ => {
-                        unimplemented!()
+                        return None;
+                        //unimplemented!()
                     }
                 }
                 return Some(packet);
