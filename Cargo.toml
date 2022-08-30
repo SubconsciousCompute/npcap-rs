@@ -9,14 +9,12 @@ edition = "2021"
 libc = "0.2"
 pktparse = "0.7.1"
 http-bytes = { version = "0.1.0", optional = true }
-crossbeam-channel = { version = "0.5.6", optional = true }
-
-[dev-dependencies]
-dns-parser = "0.8.0"
+crossbeam-channel = { version = "0.5.6" }
+dns-parser = { version = "0.8.0", optional = true }
 
 [features]
 http-parse = ["dep:http-bytes"]
-cbeam-chan = ["dep:crossbeam-channel"]
+dns-parse = ["dep:dns-parser"]
 
 [build-dependencies]
 bindgen = "0.60.1"

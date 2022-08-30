@@ -9,7 +9,7 @@ fn main() {
     let dev = pcap.find_device("Wireless");
 
     if let Some(dev) = dev {
-        let (listener, rx) = dev.open().unwrap();
+        let (listener, rx) = dev.open(None).unwrap();
         println!("filter set: {}", listener.set_filter(&dev, "ip and tcp"));
 
         listener.run();

@@ -9,7 +9,7 @@ fn main() {
 
     if let Some(dev) = pcap.find_device(&hint) {
         println!("Capturing from device: {:?}", dev.desc);
-        let (listener, rx) = dev.open().unwrap();
+        let (listener, rx) = dev.open(None).unwrap();
         listener.run();
         while let Ok(pack) = rx.recv() {
             println!("{:?}", pack);

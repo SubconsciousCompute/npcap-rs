@@ -9,17 +9,16 @@ fn main() {
     let dev = pcap.find_device("Wireless");
 
     if let Some(dev) = dev {
-        let (listener, rx) = dev.open().unwrap();
+        let (listener, rx) = dev.open(None).unwrap();
         println!("filter set: {}", listener.set_filter(&dev, "udp"));
 
         listener.run();
 
         while let Ok(pack) = rx.recv() {
             if let Some(udp) =  pack.udp {
-                if let Ok(dns) = dns_parser::Packet::parse(&udp.data.unwrap()) {
-                    if dns.header.query {
-                        println!("{:?}", dns);
-                    }
+                match udp.data {
+                    npcap_rs::UDPApp::DNS(d) => println!("{:?}", d),
+                    _ => {}
                 }
             }
         }

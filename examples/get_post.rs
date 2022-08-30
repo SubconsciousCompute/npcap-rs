@@ -9,7 +9,7 @@ fn main() {
     let dev = pcap.find_device("Wireless");
 
     if let Some(dev) = dev {
-        let (listener, rx) = dev.open().unwrap();
+        let (listener, rx) = dev.open(None).unwrap();
 
         let getpat = "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x47455420";
         let postpat = "tcp[((tcp[12:1] & 0xf0) >> 2):4] = 0x504F5354";
