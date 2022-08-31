@@ -6,6 +6,9 @@ pub mod helper;
 #[allow(dead_code, unused_imports)]
 pub mod raw;
 
+#[cfg(feature = "dns-parse")]
+pub mod dns;
+
 use std::ffi::CStr;
 use std::sync::mpsc;
 
@@ -154,8 +157,8 @@ impl Device {
     }
 
     /// Open the current device for packet sniffing
-    pub fn open(&self) -> Option<(Listener, helper::Rx<Packet>)> {
-        open_device(self.name.as_ref().unwrap())
+    pub fn open(&self, chan_size: Option<usize>) -> Option<(Listener, helper::Rx<Packet>)> {
+        open_device(self.name.as_ref().unwrap(), chan_size)
     }
 
     #[inline(always)]
@@ -189,7 +192,7 @@ impl Device {
     }
 }
 
-pub fn open_device(dev: &str) -> Option<(Listener, helper::Rx<Packet>)> {
+pub fn open_device(dev: &str, chan_size: Option<usize>) -> Option<(Listener, helper::Rx<Packet>)> {
     let mut err_buf = [0i8; 256];
     let name = std::ffi::CString::new(dev.to_string()).unwrap();
 
@@ -201,7 +204,7 @@ pub fn open_device(dev: &str) -> Option<(Listener, helper::Rx<Packet>)> {
 
     let handle = unsafe { raw::pcap_open_live(ptr, 65536, 1, 1000, &mut err_buf as _) };
     if !handle.is_null() {
-        Some(Listener::new(handle))
+        Some(Listener::new(handle, chan_size))
     } else {
         eprintln!("{:?}", unsafe { std::ffi::CStr::from_ptr(&err_buf as _) });
         None
@@ -254,6 +257,13 @@ pub enum TCPApps {
 }
 
 #[derive(Debug)]
+pub enum UDPApp {
+    #[cfg(feature = "dns-parse")]
+    DNS(dns::DNSInfo),
+    Generic(Option<Vec<u8>>),
+}
+
+#[derive(Debug)]
 pub struct TCPPacket {
     pub hdr: tcp::TcpHeader,
     pub data: TCPApps,
@@ -262,7 +272,7 @@ pub struct TCPPacket {
 #[derive(Debug)]
 pub struct UDPPacket {
     pub hdr: udp::UdpHeader,
-    pub data: Option<Vec<u8>>,
+    pub data: UDPApp
 }
 
 #[derive(Debug)]
@@ -298,8 +308,13 @@ extern "C" fn pkt_handle(param: *const (), header: &raw::pcap_pkthdr, pkt_data: 
 
 impl Listener {
     /// Create a new packet listener for a device
-    pub fn new(handle: raw::pcap_t) -> (Self, helper::Rx<Packet>) {
-        let (tx, rx) = helper::channel();
+    pub fn new(handle: raw::pcap_t, chan_size: Option<usize>) -> (Self, helper::Rx<Packet>) {
+        let (tx, rx) = if let Some(size) = chan_size {
+            helper::channel_bound(size)
+        } else {
+            helper::channel()
+        };
+
         (Self { tx, handle }, rx)
     }
 

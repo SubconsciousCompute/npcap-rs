@@ -10,12 +10,17 @@ fn main() {
 
     if let Some(dev) = dev {
         let (listener, rx) = dev.open(None).unwrap();
-        println!("filter set: {}", listener.set_filter(&dev, "ip and tcp"));
+        println!("filter set: {}", listener.set_filter(&dev, "udp"));
 
         listener.run();
 
         while let Ok(pack) = rx.recv() {
-            println!("{:?}", pack);
+            if let Some(udp) =  pack.udp {
+                match udp.data {
+                    npcap_rs::UDPApp::DNS(d) => println!("{:?}", d),
+                    _ => {}
+                }
+            }
         }
     }
 }

@@ -72,10 +72,20 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                     pktparse::ip::IPProtocol::UDP => {
                         if let Ok((remaining, hdr)) = pktparse::udp::parse_udp_header(remaining) {
                             let data = if !remaining.is_empty() {
-                                // might be expensive `.to_vec` call
-                                Some(remaining.to_vec())
+                                #[cfg(feature = "dns-parse")] 
+                                {
+                                    if let Ok(dns) = dns_parser::Packet::parse(remaining) {
+                                        crate::UDPApp::DNS(crate::dns::from_packet(&dns))
+                                    } else {
+                                        crate::UDPApp::Generic(Some(remaining.to_vec()))
+                                    }
+                                }
+                                #[cfg(not(feature = "dns-parse"))] {
+                                    // might be expensive `.to_vec` call
+                                    crate::UDPApp::Generic(Some(remaining.to_vec()))
+                                }
                             } else {
-                                None
+                                crate::UDPApp::Generic(None)
                             };
 
                             let mut pack = crate::UDPPacket { hdr, data };
@@ -84,7 +94,8 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
                         }
                     }
                     _ => {
-                        unimplemented!()
+                        return None;
+                        //unimplemented!()
                     }
                 }
                 return Some(packet);
@@ -97,30 +108,15 @@ pub fn parse_raw(data: &[u8]) -> Option<crate::Packet> {
     None
 }
 
-#[cfg(feature = "cbeam-chan")]
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 
-#[cfg(feature = "cbeam-chan")]
 pub type Rx<T> = Receiver<T>;
-
-#[cfg(not(feature = "cbeam-chan"))]
-pub type Rx<T> = mpsc::Receiver<T>;
-
-#[cfg(feature = "cbeam-chan")]
 pub type Tx<T> = Sender<T>;
 
-#[cfg(not(feature = "cbeam-chan"))]
-pub type Tx<T> = mpsc::Sender<T>;
-
-#[cfg(feature = "cbeam-chan")]
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     unbounded()
 }
 
-#[cfg(not(feature = "cbeam-chan"))]
-use std::sync::mpsc;
-
-#[cfg(not(feature = "cbeam-chan"))]
-pub fn channel<T>() -> (mpsc::Sender<T>, mpsc::Receiver<T>) {
-    mpsc::channel()
+pub fn channel_bound<T>(size: usize) -> (Sender<T>, Receiver<T>) {
+    bounded(size)
 }

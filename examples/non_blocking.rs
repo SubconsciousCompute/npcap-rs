@@ -7,7 +7,7 @@ fn main() {
         .find(|dev| dev.desc.as_ref().unwrap() == "Realtek(R) PCI(e) Ethernet Controller");
 
     if let Some(dev) = dev {
-        let (listener, _) = dev.open().unwrap();
+        let (listener, _) = dev.open(None).unwrap();
 
         while let Some(pack) = listener.next_packet() {
             println!("{:?}", pack);
