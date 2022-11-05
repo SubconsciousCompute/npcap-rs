@@ -1,8 +1,6 @@
 ![](https://gitlab.subcom.tech/subcom/npcap-rs/badges/main/pipeline.svg)
 
-# npcap_rs
-
-__WIP__
+# npcap-rs
 
 Rust binding for npcap library. 
 
